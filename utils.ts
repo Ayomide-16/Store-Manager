@@ -3,6 +3,7 @@ import { CURRENCY_SYMBOL } from './constants';
 import * as XLSX from 'xlsx';
 
 export const formatCurrency = (amount: number): string => {
+  if (amount === undefined || amount === null || isNaN(amount)) return `${CURRENCY_SYMBOL}0.00`;
   return `${CURRENCY_SYMBOL}${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
@@ -39,7 +40,7 @@ export const downloadData = (data: any[], filename: string, type: 'csv' | 'xlsx'
     const headers = Object.keys(data[0]);
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
+      ...data.map(row =>
         headers.map(header => {
           let val = row[header];
           if (val === null || val === undefined) val = '';
@@ -84,7 +85,7 @@ export const parseFile = async (file: File): Promise<any[]> => {
           const text = data as string;
           const lines = text.split('\n').filter(l => l.trim() !== '');
           const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-          
+
           const results = lines.slice(1).map(l => {
             const values = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"|"$/g, ''));
             const row: any = {};

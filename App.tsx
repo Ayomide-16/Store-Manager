@@ -14,6 +14,7 @@ import POSWithdrawals from './pages/POSWithdrawals';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ConfirmationModal from './components/ConfirmationModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
   const { currentUser, error, clearError } = useShop();
@@ -48,7 +49,7 @@ const AppContent: React.FC = () => {
       </div>
 
       {/* Global Alert Modal for system errors and feedback */}
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={!!error}
         onClose={clearError}
         onConfirm={clearError}
@@ -63,7 +64,9 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => (
   <ShopProvider>
-    <AppContent />
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   </ShopProvider>
 );
 
