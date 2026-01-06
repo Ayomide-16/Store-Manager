@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useShop } from '../store';
 import { UserRole, User } from '../types';
-import { Plus, UserPlus, Shield, User as UserIcon, Mail, Trash2, Edit2, ShieldAlert, X, Settings, RefreshCw, AlertCircle, WifiOff } from 'lucide-react';
+import { Plus, UserPlus, Shield, User as UserIcon, Mail, Trash2, Edit2, ShieldAlert, X, Settings, RefreshCw, AlertCircle, WifiOff, Loader2 } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
   const { users, currentUser, addUser, syncUsers, updateUserAccount, deleteUserAccount, error: globalError } = useShop();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -25,9 +26,10 @@ const UserManagement: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (editingUserId) {
-        updateUserAccount(editingUserId, {
+        await updateUserAccount(editingUserId, {
           fullName: formData.fullName,
           email: formData.email,
           role: formData.role
@@ -43,6 +45,8 @@ const UserManagement: React.FC = () => {
       closeModal();
     } catch (err: any) {
       alert("Error managing user: " + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -58,6 +62,7 @@ const UserManagement: React.FC = () => {
   };
 
   const closeModal = () => {
+    if (isSubmitting) return;
     setIsModalOpen(false);
     setEditingUserId(null);
     setFormData({ fullName: '', email: '', role: UserRole.SALESPERSON, password: '' });
@@ -140,7 +145,7 @@ const UserManagement: React.FC = () => {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Joined {new Date(user.createdAt).toLocaleDateString()}</span>
               </div>
               
-              <div className="flex gap-2 pt-4 border-t border-slate-50 opacity-0 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-2 pt-4 border-t border-slate-50 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
                 {user.id !== currentUser?.id ? (
                   <>
                     <button 
@@ -170,10 +175,10 @@ const UserManagement: React.FC = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeModal}></div>
-          <div className="relative bg-white w-full max-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="text-xl font-black text-slate-900">{editingUserId ? 'Update Staff Member' : 'Add Staff Member'}</h3>
-              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-white"><X className="w-6 h-6" /></button>
+              <button disabled={isSubmitting} onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-white"><X className="w-6 h-6" /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-8 space-y-5">
               <div>
@@ -226,9 +231,9 @@ const UserManagement: React.FC = () => {
               </div>
               
               <div className="flex gap-3 pt-6">
-                <button type="button" onClick={closeModal} className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-600">Cancel</button>
-                <button type="submit" className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 transform active:scale-95">
-                  {editingUserId ? 'Apply Changes' : 'Confirm & Add Member'}
+                <button type="button" disabled={isSubmitting} onClick={closeModal} className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-600">Cancel</button>
+                <button type="submit" disabled={isSubmitting} className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 transform active:scale-95 flex items-center justify-center gap-2">
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingUserId ? 'Apply Changes' : 'Confirm & Add Member')}
                 </button>
               </div>
             </form>
@@ -236,7 +241,6 @@ const UserManagement: React.FC = () => {
         </div>
       )}
 
-      {/* CUSTOM DELETE CONFIRMATION MODAL FOR MOBILE */}
       {deleteConfirmId && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setDeleteConfirmId(null)}></div>

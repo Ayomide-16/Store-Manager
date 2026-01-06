@@ -7,6 +7,7 @@ import {
   PlusCircle, History, MessageSquare, Package, X, ChevronRight, 
   Zap, CheckCircle, Clock, Plus, Banknote, ArrowRight, ShoppingCart, ShieldCheck, Sparkles, Database
 } from 'lucide-react';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;
@@ -23,6 +24,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const totalRevenue = todaySales.reduce((acc, curr) => acc + curr.totalAmount, 0);
   const lowStockItems = items.filter(i => i.quantityInStock <= i.reorderLevel);
+
+  const [showSeedConfirm, setShowSeedConfirm] = useState(false);
 
   const posHealth = useMemo(() => {
     if (!activeFloat) return { label: 'Not Started', color: 'bg-slate-400', textColor: 'text-slate-600', status: 'offline' };
@@ -77,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
           <div className="flex gap-3">
              <button onClick={() => onNavigate('inventory')} className="px-6 py-3 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-lg active:scale-95">Go To Inventory</button>
-             <button onClick={() => { if(confirm("Log out to use the 'Initialize Database' tool on the login screen?")) { window.location.reload(); } }} className="px-6 py-3 bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-400 transition-all border border-indigo-400 shadow-lg active:scale-95">Help Me Set Up</button>
+             <button onClick={() => setShowSeedConfirm(true)} className="px-6 py-3 bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-400 transition-all border border-indigo-400 shadow-lg active:scale-95">Help Me Set Up</button>
           </div>
         </div>
       )}
@@ -183,6 +186,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
            </div>
         </div>
       </div>
+
+      {/* Setup Confirmation Modal */}
+      <ConfirmationModal 
+        isOpen={showSeedConfirm}
+        onClose={() => setShowSeedConfirm(false)}
+        onConfirm={() => {
+          setShowSeedConfirm(false);
+          window.location.reload();
+        }}
+        title="Setup Assistant"
+        message="To access the setup tools, we need to log you out and return to the login screen where the Initialize Database tool is located. Proceed?"
+        confirmLabel="Go to Login"
+        variant="info"
+      />
     </div>
   );
 };

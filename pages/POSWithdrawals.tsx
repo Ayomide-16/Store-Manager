@@ -7,6 +7,7 @@ import {
   History, User, CheckCircle, CreditCard, ChevronRight, 
   X, Settings, RefreshCw, Zap, Minus, ArrowLeftRight, Trash2, ShieldCheck, PlusCircle, Edit2, Eraser
 } from 'lucide-react';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const POSWithdrawals: React.FC = () => {
   const { 
@@ -44,6 +45,9 @@ const POSWithdrawals: React.FC = () => {
   const [showAddTierModal, setShowAddTierModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
 
+  // Deletion state
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
   // Auto-calculate charge
   useEffect(() => {
     const amount = formData.withdrawalAmount;
@@ -61,7 +65,7 @@ const POSWithdrawals: React.FC = () => {
       setTimeout(() => setShowSuccess(null), 3000);
       setFormData({ customerName: '', withdrawalAmount: 0, serviceCharge: 0, paymentMethod: 'card' });
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || JSON.stringify(err));
     }
   };
 
@@ -92,6 +96,13 @@ const POSWithdrawals: React.FC = () => {
     if (activeFloat.currentBalance < 10000) return 'low';
     return 'healthy';
   }, [activeFloat]);
+
+  const confirmDeleteTransaction = () => {
+    if (pendingDeleteId) {
+      deletePOSTransaction(pendingDeleteId);
+      setPendingDeleteId(null);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
@@ -247,7 +258,7 @@ const POSWithdrawals: React.FC = () => {
                     <button 
                       type="button"
                       onClick={() => setFormData({...formData, paymentMethod: 'bank_transfer'})}
-                      className={`py-4 rounded-2xl border-2 font-black text-[10px] uppercase transition-all flex items-center justify-center gap-2 ${formData.paymentMethod === 'bank_transfer' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-50 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
+                      className={`py-4 rounded-2xl border-2 font-black text-[10px] uppercase transition-all flex items-center justify-center gap-2 ${formData.paymentMethod === 'bank_transfer' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'}`}
                     >
                       <ArrowLeftRight className="w-4 h-4" /> Transfer
                     </button>
@@ -331,7 +342,7 @@ const POSWithdrawals: React.FC = () => {
                     </div>
                     {isAdmin && (
                       <button 
-                        onClick={() => window.confirm('Delete this record?') && deletePOSTransaction(tx.id)} 
+                        onClick={() => setPendingDeleteId(tx.id)} 
                         className="text-rose-300 hover:text-rose-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -469,6 +480,17 @@ const POSWithdrawals: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal 
+        isOpen={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={confirmDeleteTransaction}
+        title="Delete Transaction?"
+        message="This will remove the transaction from the ledger. Are you sure?"
+        confirmLabel="Yes, Delete Record"
+        variant="danger"
+      />
     </div>
   );
 };

@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { useShop } from '../store';
 import { PaymentMethod, Item } from '../types';
 import { formatCurrency } from '../utils';
-import { Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle, Wallet, CreditCard } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, CheckCircle, Wallet, CreditCard, Scissors } from 'lucide-react';
 
 const SalesCalculator: React.FC = () => {
   const { items, addSale } = useShop();
@@ -47,8 +48,21 @@ const SalesCalculator: React.FC = () => {
     const item = items.find(i => i.id === id)!;
     setCart(prev => prev.map(i => {
       if (i.id === id) {
-        const newQty = Math.max(1, Math.min(item.quantityInStock, i.quantity + delta));
+        // Use 0.25 steps for fractional items, 1 for others
+        const step = item.allowFractional ? 0.25 : 1;
+        const newQty = Math.max(step, Math.min(item.quantityInStock, i.quantity + (delta * step)));
         return { ...i, quantity: newQty };
+      }
+      return i;
+    }));
+  };
+
+  const setFixedQuantity = (id: string, qty: number) => {
+    const item = items.find(i => i.id === id)!;
+    setCart(prev => prev.map(i => {
+      if (i.id === id) {
+        const finalQty = Math.min(item.quantityInStock, qty);
+        return { ...i, quantity: finalQty };
       }
       return i;
     }));
@@ -94,9 +108,12 @@ const SalesCalculator: React.FC = () => {
                   disabled={item.quantityInStock <= 0}
                   className="w-full text-left p-3 rounded-xl border border-slate-100 hover:bg-slate-50 flex items-center justify-between group transition-colors disabled:opacity-50"
                 >
-                  <div>
-                    <p className="font-bold text-slate-900">{item.name}</p>
-                    <p className="text-xs text-slate-500">{item.sku} • Stock: {item.quantityInStock}</p>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <p className="font-bold text-slate-900 leading-none">{item.name}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{item.sku} • Stock: {item.quantityInStock}</p>
+                    </div>
+                    {item.allowFractional && <Scissors className="w-3.5 h-3.5 text-indigo-400" title="Supports fractional selling" />}
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-indigo-600">{formatCurrency(item.sellingPrice)}</p>
@@ -126,36 +143,73 @@ const SalesCalculator: React.FC = () => {
           </div>
           <div className="flex-1 overflow-y-auto min-h-[300px]">
             {cartDetails.map(item => (
-              <div key={item.id} className="p-4 border-b border-slate-100 flex items-center gap-4 hover:bg-slate-50 transition-colors">
-                <div className="flex-1">
-                  <p className="font-bold text-slate-900 leading-tight">{item.name}</p>
-                  <p className="text-xs text-slate-500">{formatCurrency(item.sellingPrice)} per {item.unit}</p>
-                </div>
-                <div className="flex items-center gap-2">
+              <div key={item.id} className="p-4 border-b border-slate-100 flex flex-col gap-3 hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900 leading-tight">{item.name}</p>
+                      {item.allowFractional && <Scissors className="w-3.5 h-3.5 text-indigo-400" />}
+                    </div>
+                    <p className="text-xs text-slate-500">{formatCurrency(item.sellingPrice)} per {item.unit}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <input 
+                        type="number" 
+                        step={item.allowFractional ? "0.25" : "1"}
+                        className="w-16 text-center font-bold text-slate-900 bg-white border border-slate-200 rounded-lg py-1 outline-none"
+                        value={item.cartQuantity}
+                        onChange={(e) => setFixedQuantity(item.id, Number(e.target.value))}
+                      />
+                      <button 
+                        onClick={() => updateQuantity(item.id, 1)}
+                        disabled={item.cartQuantity >= item.quantityInStock}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="w-24 text-right font-black text-slate-900">
+                    {formatCurrency(item.sellingPrice * item.cartQuantity)}
+                  </div>
                   <button 
-                    onClick={() => updateQuantity(item.id, -1)}
-                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
+                    onClick={() => removeFromCart(item.id)}
+                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                   >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <span className="w-8 text-center font-bold text-slate-900">{item.cartQuantity}</span>
-                  <button 
-                    onClick={() => updateQuantity(item.id, 1)}
-                    disabled={item.cartQuantity >= item.quantityInStock}
-                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30"
-                  >
-                    <Plus className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="w-24 text-right font-bold text-slate-900">
-                  {formatCurrency(item.sellingPrice * item.cartQuantity)}
-                </div>
-                <button 
-                  onClick={() => removeFromCart(item.id)}
-                  className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                
+                {/* QUICK FRACTION BUTTONS */}
+                {item.allowFractional && (
+                  <div className="flex gap-2 pl-2">
+                    {[
+                      { label: '1/4', val: 0.25 },
+                      { label: '1/2', val: 0.5 },
+                      { label: '3/4', val: 0.75 },
+                      { label: 'Full', val: 1.0 }
+                    ].map(fraction => (
+                      <button
+                        key={fraction.label}
+                        onClick={() => setFixedQuantity(item.id, fraction.val)}
+                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase transition-all ${
+                          item.cartQuantity === fraction.val 
+                            ? 'bg-indigo-600 text-white shadow-md' 
+                            : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                        }`}
+                      >
+                        {fraction.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {cart.length === 0 && (

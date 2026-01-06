@@ -33,7 +33,7 @@ interface ShopContextType {
   logout: () => Promise<void>;
   addUser: (user: Partial<User> & { password?: string }) => Promise<void>;
   syncUsers: () => Promise<void>;
-  updateUserAccount: (id: string, updates: Partial<User>) => void;
+  updateUserAccount: (id: string, updates: Partial<User>) => Promise<void>;
   deleteUserAccount: (id: string) => Promise<void>;
   addItem: (item: Partial<Item>) => Promise<void>;
   addSale: (saleData: { items: any[], paymentMethod: PaymentMethod, additionalCharges: number }) => Promise<void>;
@@ -44,7 +44,7 @@ interface ShopContextType {
   addChatMessage: (message: string, response: string) => void;
   deleteItem: (id: string) => void;
   clearInventory: () => Promise<void>;
-  updateItem: (id: string, updates: Partial<Item>) => void;
+  updateItem: (id: string, updates: Partial<Item>) => Promise<void>;
   deletePOSTransaction: (id: string) => void;
   returnSale: (id: string, reason: string) => void;
   addItems: (items: Partial<Item>[]) => Promise<void>;
@@ -120,6 +120,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sellingPrice: item.selling_price,
     quantityInStock: item.quantity_in_stock,
     reorderLevel: item.reorder_level,
+    allowFractional: item.allow_fractional === true,
     createdAt: item.created_at,
     updatedAt: item.updated_at
   });
@@ -282,12 +283,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentUser, syncUsers]);
 
   const login = async (email: string, password: string) => {
-    const { data, error: authError } = await signIn({ email, password });
+    const { error: authError } = await signIn({ email, password });
     if (authError) throw authError;
   };
 
   const register = async ({ email, password, fullName, shopName }: any) => {
-    const { data, error: authError } = await signUp({ 
+    const { error: authError } = await signUp({ 
       email, 
       password, 
       fullName, 
@@ -303,7 +304,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addUser = async (userData: Partial<User> & { password?: string }) => {
-    const { data, error: adminError } = await supabaseAdmin.auth.admin.createUser({
+    const { error: adminError } = await supabaseAdmin.auth.admin.createUser({
       email: userData.email!,
       password: userData.password || 'NaijaShop2024!',
       user_metadata: {
@@ -318,8 +319,18 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await syncUsers();
   };
 
-  const updateUserAccount = (id: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+  const updateUserAccount = async (id: string, updates: Partial<User>) => {
+    const { error: adminError } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      email: updates.email,
+      user_metadata: {
+        full_name: updates.fullName,
+        role: updates.role,
+        shop_name: shopName 
+      }
+    });
+
+    if (adminError) throw adminError;
+    await syncUsers();
   };
 
   const deleteUserAccount = async (id: string) => {
@@ -335,18 +346,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addItem = async (itemData: Partial<Item>) => {
     const sku = itemData.sku || generateSKU(itemData.name || 'ITM');
+    
+    const payload: any = {
+      name: itemData.name,
+      sku,
+      category_id: itemData.categoryId || null,
+      unit: itemData.unit || 'pcs',
+      cost_price: itemData.costPrice || 0,
+      selling_price: itemData.sellingPrice || 0,
+      quantity_in_stock: itemData.quantityInStock || 0,
+      reorder_level: itemData.reorderLevel || 5,
+      allow_fractional: itemData.allowFractional === true
+    };
+
     const { data, error: itemError } = await supabase
       .from('items')
-      .insert({
-        name: itemData.name,
-        sku,
-        category_id: itemData.categoryId,
-        unit: itemData.unit || 'pcs',
-        cost_price: itemData.costPrice,
-        selling_price: itemData.sellingPrice,
-        quantity_in_stock: itemData.quantityInStock,
-        reorder_level: itemData.reorderLevel || 5
-      })
+      .insert(payload)
       .select()
       .single();
 
@@ -360,7 +375,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (clearError) throw clearError;
       setItems([]);
     } catch (err: any) {
-      console.error("Inventory wipe failed:", err.message);
       throw err;
     }
   };
@@ -371,54 +385,64 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const prepared = newItems.map(itemData => ({
       name: itemData.name,
       sku: itemData.sku || generateSKU(itemData.name || 'ITM'),
-      category_id: itemData.categoryId,
+      category_id: itemData.categoryId || null,
       unit: itemData.unit || 'pcs',
       cost_price: itemData.costPrice || 0,
       selling_price: itemData.sellingPrice || 0,
       quantity_in_stock: itemData.quantityInStock || 0,
-      reorder_level: 5
+      reorder_level: 5,
+      allow_fractional: itemData.allowFractional === true
     }));
 
     const { data, error: itemsError } = await supabase.from('items').insert(prepared).select();
-    
-    if (itemsError) {
-      console.error("Supabase bulk insert error:", itemsError);
-      throw itemsError;
-    }
+    if (itemsError) throw itemsError;
 
     if (data) {
-      const mapped = data.map(mapItemFromDB);
-      setItems(prev => [...prev, ...mapped]);
+      setItems(prev => [...prev, ...data.map(mapItemFromDB)]);
     }
   };
 
   const updateItem = async (id: string, updates: Partial<Item>) => {
+    const payload: any = {
+      updated_at: new Date().toISOString()
+    };
+    
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.categoryId !== undefined) payload.category_id = updates.categoryId || null;
+    if (updates.costPrice !== undefined) payload.cost_price = Number(updates.costPrice);
+    if (updates.sellingPrice !== undefined) payload.selling_price = Number(updates.sellingPrice);
+    if (updates.quantityInStock !== undefined) payload.quantity_in_stock = Number(updates.quantityInStock);
+    if (updates.reorderLevel !== undefined) payload.reorder_level = Number(updates.reorderLevel);
+    if (updates.unit !== undefined) payload.unit = updates.unit;
+    if (updates.allowFractional !== undefined) payload.allow_fractional = updates.allowFractional === true;
+
     const { data, error: updateError } = await supabase
       .from('items')
-      .update({
-        name: updates.name,
-        cost_price: updates.costPrice,
-        selling_price: updates.sellingPrice,
-        quantity_in_stock: updates.quantityInStock,
-        reorder_level: updates.reorderLevel,
-        updated_at: new Date().toISOString()
-      })
+      .update(payload)
       .eq('id', id)
       .select()
       .single();
 
     if (updateError) throw updateError;
-    if (data) setItems(prev => prev.map(item => item.id === id ? mapItemFromDB(data) : item));
+    
+    if (data) {
+      const updatedItem = mapItemFromDB(data);
+      setItems(prev => prev.map(item => item.id === id ? updatedItem : item));
+    }
   };
 
   const bulkUpdateItems = async (ids: string[], updates: Partial<Item>) => {
+    const payload: any = {
+      updated_at: new Date().toISOString()
+    };
+    
+    if (updates.costPrice !== undefined) payload.cost_price = updates.costPrice;
+    if (updates.sellingPrice !== undefined) payload.selling_price = updates.sellingPrice;
+    if (updates.allowFractional !== undefined) payload.allow_fractional = updates.allowFractional;
+
     const { error: bulkError } = await supabase
       .from('items')
-      .update({
-        cost_price: updates.costPrice,
-        selling_price: updates.sellingPrice,
-        updated_at: new Date().toISOString()
-      })
+      .update(payload)
       .in('id', ids);
 
     if (bulkError) throw bulkError;
@@ -434,29 +458,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addCategory = async (name: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) return '';
-    
-    // Check if category already exists in local state
     const existing = categories.find(c => c.name.toLowerCase() === trimmedName.toLowerCase());
     if (existing) return existing.id;
-    
-    // Try upsert to DB
-    const { data, error: catError } = await supabase
-      .from('categories')
-      .upsert({ name: trimmedName }, { onConflict: 'name' })
-      .select()
-      .single();
-
+    const { data, error: catError } = await supabase.from('categories').upsert({ name: trimmedName }, { onConflict: 'name' }).select().single();
     if (catError) {
-      // If error (e.g. race condition), try fetching
-      const { data: fetched } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('name', trimmedName)
-        .single();
+      const { data: fetched } = await supabase.from('categories').select('id').eq('name', trimmedName).single();
       if (fetched) return fetched.id;
       throw catError;
     }
-
     if (data) {
       setCategories(prev => [...prev, data]);
       return data.id;
@@ -475,30 +484,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profit = (originalItem.sellingPrice - originalItem.costPrice) * cartItem.quantity;
       subtotal += lineTotal;
       totalProfit += profit;
-      return { 
-        ...cartItem, 
-        originalItem, 
-        lineTotal, 
-        profit,
-        newStock: originalItem.quantityInStock - cartItem.quantity
-      };
+      return { ...cartItem, originalItem, lineTotal, profit, newStock: originalItem.quantityInStock - cartItem.quantity };
     });
 
-    const { data: saleData, error: saleError } = await supabase
-      .from('sales')
-      .insert({
-        sale_number: saleNumber,
-        status: SaleStatus.COMPLETED,
-        subtotal,
-        additional_charges: data.additionalCharges,
-        total_amount: subtotal + data.additionalCharges,
-        profit_amount: totalProfit,
-        payment_method: data.paymentMethod,
-        created_by: currentUser?.id,
-        sale_date: new Date().toISOString().split('T')[0]
-      })
-      .select()
-      .single();
+    const { data: saleData, error: saleError } = await supabase.from('sales').insert({
+      sale_number: saleNumber,
+      status: SaleStatus.COMPLETED,
+      subtotal,
+      additional_charges: data.additionalCharges,
+      total_amount: subtotal + data.additionalCharges,
+      profit_amount: totalProfit,
+      payment_method: data.paymentMethod,
+      created_by: currentUser?.id,
+      sale_date: new Date().toISOString().split('T')[0]
+    }).select().single();
 
     if (saleError) throw saleError;
 
@@ -525,47 +524,27 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const returnSale = async (id: string, reason: string) => {
-    const { data: saleData, error: saleError } = await supabase
-      .from('sales')
-      .update({ status: SaleStatus.RETURNED, return_reason: reason, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
+    const { data: saleData, error: saleError } = await supabase.from('sales').update({ status: SaleStatus.RETURNED, return_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).select().single();
     if (saleError) throw saleError;
-
     const itemsToRestore = saleItems.filter(si => si.saleId === id);
     for (const si of itemsToRestore) {
       const item = items.find(i => i.id === si.itemId);
       if (item) await updateItem(item.id, { quantityInStock: item.quantityInStock + si.quantity });
     }
-
     if (saleData) setSales(prev => prev.map(s => s.id === id ? mapSaleFromDB(saleData) : s));
   };
 
   const startPOSFloat = async (openingBalance: number) => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const { data, error: floatError } = await supabase
-      .from('pos_floats')
-      .insert({
-        date: todayStr,
-        opening_balance: openingBalance,
-        current_balance: openingBalance,
-        status: 'active',
-        created_by: currentUser?.id
-      })
-      .select()
-      .single();
-
+    const { data, error: floatError } = await supabase.from('pos_floats').insert({
+      date: todayStr,
+      opening_balance: openingBalance,
+      current_balance: openingBalance,
+      status: 'active',
+      created_by: currentUser?.id
+    }).select().single();
     if (floatError) throw floatError;
-
-    await supabase.from('pos_transfers').insert({
-      float_id: data.id,
-      amount: openingBalance,
-      source: 'external',
-      transferred_by: currentUser?.id
-    });
-
+    await supabase.from('pos_transfers').insert({ float_id: data.id, amount: openingBalance, source: 'external', transferred_by: currentUser?.id });
     if (data) setPosFloats(prev => [mapFloatFromDB(data), ...prev]);
   };
 
@@ -573,41 +552,27 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const todayStr = new Date().toISOString().split('T')[0];
     const active = posFloats.find(f => f.status === 'active' && f.date === todayStr);
     if (!active) throw new Error("No active float for today");
-
-    const { data: txData, error: txError } = await supabase
-      .from('pos_transactions')
-      .insert({
-        float_id: active.id,
-        transaction_number: `POS-${Date.now()}`,
-        customer_name: data.customerName,
-        withdrawal_amount: data.withdrawalAmount,
-        service_charge: data.serviceCharge,
-        total_paid: data.withdrawalAmount + data.serviceCharge,
-        payment_method: data.paymentMethod,
-        created_by: currentUser?.id,
-        transaction_date: new Date().toISOString()
-      })
-      .select()
-      .single();
-
+    const { data: txData, error: txError } = await supabase.from('pos_transactions').insert({
+      float_id: active.id,
+      transaction_number: `POS-${Date.now()}`,
+      customer_name: data.customerName,
+      withdrawal_amount: data.withdrawalAmount,
+      service_charge: data.serviceCharge,
+      total_paid: data.withdrawalAmount + data.serviceCharge,
+      payment_method: data.paymentMethod,
+      created_by: currentUser?.id,
+      transaction_date: new Date().toISOString()
+    }).select().single();
     if (txError) throw txError;
-
     const newBalance = active.currentBalance - data.withdrawalAmount;
-    const { data: updatedFloat } = await supabase
-      .from('pos_floats')
-      .update({ 
-        current_balance: newBalance,
-        total_withdrawals_processed: active.totalWithdrawalsProcessed + 1,
-        total_charges_earned: active.totalChargesEarned + data.serviceCharge,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', active.id)
-      .select()
-      .single();
-
+    const { data: updatedFloat } = await supabase.from('pos_floats').update({ 
+      current_balance: newBalance,
+      total_withdrawals_processed: active.totalWithdrawalsProcessed + 1,
+      total_charges_earned: active.totalChargesEarned + data.serviceCharge,
+      updated_at: new Date().toISOString()
+    }).eq('id', active.id).select().single();
     if (txData) setPosTransactions(prev => [mapTxFromDB(txData), ...prev]);
     if (updatedFloat) setPosFloats(prev => prev.map(f => f.id === active.id ? mapFloatFromDB(updatedFloat) : f));
-    
     return txData.transaction_number;
   };
 
@@ -615,28 +580,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const todayStr = new Date().toISOString().split('T')[0];
     const active = posFloats.find(f => f.status === 'active' && f.date === todayStr);
     if (!active) return;
-
-    const { data, error: transferError } = await supabase
-      .from('pos_transfers')
-      .insert({
-        float_id: active.id,
-        amount,
-        source,
-        transferred_by: currentUser?.id
-      })
-      .select()
-      .single();
-
+    const { data, error: transferError } = await supabase.from('pos_transfers').insert({ float_id: active.id, amount, source, transferred_by: currentUser?.id }).select().single();
     if (transferError) throw transferError;
-
     const newBalance = active.currentBalance + amount;
-    const { data: updatedFloat } = await supabase
-      .from('pos_floats')
-      .update({ current_balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('id', active.id)
-      .select()
-      .single();
-
+    const { data: updatedFloat } = await supabase.from('pos_floats').update({ current_balance: newBalance, updated_at: new Date().toISOString() }).eq('id', active.id).select().single();
     if (data) setPosTransfers(prev => [...prev, mapTransferFromDB(data)]);
     if (updatedFloat) setPosFloats(prev => prev.map(f => f.id === active.id ? mapFloatFromDB(updatedFloat) : f));
   };
@@ -644,38 +591,24 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deletePOSTransaction = async (id: string) => {
     const tx = posTransactions.find(t => t.id === id);
     if (!tx) return;
-
     const { error: deleteError } = await supabase.from('pos_transactions').delete().eq('id', id);
     if (deleteError) throw deleteError;
-
     const float = posFloats.find(f => f.id === tx.floatId);
     if (float) {
-      const { data: updatedFloat } = await supabase
-        .from('pos_floats')
-        .update({
-          current_balance: float.currentBalance + tx.withdrawalAmount,
-          total_withdrawals_processed: float.totalWithdrawalsProcessed - 1,
-          total_charges_earned: float.totalChargesEarned - tx.serviceCharge,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', float.id)
-        .select()
-        .single();
-      
+      const { data: updatedFloat } = await supabase.from('pos_floats').update({
+        current_balance: float.currentBalance + tx.withdrawalAmount,
+        total_withdrawals_processed: float.totalWithdrawalsProcessed - 1,
+        total_charges_earned: float.totalChargesEarned - tx.serviceCharge,
+        updated_at: new Date().toISOString()
+      }).eq('id', float.id).select().single();
       if (updatedFloat) setPosFloats(prev => prev.map(f => f.id === float.id ? mapFloatFromDB(updatedFloat) : f));
     }
-
     setPosTransactions(prev => prev.filter(t => t.id !== id));
   };
 
   const resetPOSTiersToDefault = async () => {
     await clearPOSTiers();
-    const { data, error: tiersError } = await supabase.from('pos_charge_tiers').insert(DEFAULT_POS_TIERS.map(t => ({
-      min_amount: t.minAmount,
-      max_amount: t.maxAmount,
-      charge_amount: t.chargeAmount,
-      is_active: true
-    }))).select();
+    const { data } = await supabase.from('pos_charge_tiers').insert(DEFAULT_POS_TIERS.map(t => ({ min_amount: t.minAmount, max_amount: t.maxAmount, charge_amount: t.chargeAmount, is_active: true }))).select();
     if (data) setPosChargeTiers(data.map(t => ({ id: t.id, minAmount: t.min_amount, maxAmount: t.max_amount, chargeAmount: t.charge_amount, isActive: t.is_active })));
   };
 
@@ -685,22 +618,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addPOSChargeTier = async (tier: Partial<POSChargeTier>) => {
-    const { data, error: tierError } = await supabase.from('pos_charge_tiers').insert({
-      min_amount: tier.minAmount,
-      max_amount: tier.maxAmount,
-      charge_amount: tier.chargeAmount,
-      is_active: true
-    }).select().single();
+    const { data } = await supabase.from('pos_charge_tiers').insert({ min_amount: tier.minAmount, max_amount: tier.maxAmount, charge_amount: tier.chargeAmount, is_active: true }).select().single();
     if (data) setPosChargeTiers(prev => [...prev, { id: data.id, minAmount: data.min_amount, maxAmount: data.max_amount, chargeAmount: data.charge_amount, isActive: data.is_active }]);
   };
 
   const updatePOSChargeTier = async (id: string, updates: Partial<POSChargeTier>) => {
-    const { data, error: tierError } = await supabase.from('pos_charge_tiers').update({
-      min_amount: updates.minAmount,
-      max_amount: updates.maxAmount,
-      charge_amount: updates.chargeAmount,
-      is_active: updates.isActive
-    }).eq('id', id).select().single();
+    const { data } = await supabase.from('pos_charge_tiers').update({ min_amount: updates.minAmount, max_amount: updates.maxAmount, charge_amount: updates.chargeAmount, is_active: updates.isActive }).eq('id', id).select().single();
     if (data) setPosChargeTiers(prev => prev.map(t => t.id === id ? { id: data.id, minAmount: data.min_amount, maxAmount: data.max_amount, chargeAmount: data.charge_amount, isActive: data.is_active } : t));
   };
 
@@ -716,18 +639,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       total_amount: data.items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0),
       created_by: currentUser?.id
     }).select().single();
-
     if (restockError) throw restockError;
-
-    const restockItemsPayload = data.items.map(ri => ({
-      restock_id: restockHead.id,
-      item_id: ri.id,
-      quantity: ri.quantity,
-      unit_cost: ri.unit_cost
-    }));
-
+    const restockItemsPayload = data.items.map(ri => ({ restock_id: restockHead.id, item_id: ri.id, quantity: ri.quantity, unit_cost: ri.unit_cost }));
     await supabase.from('restock_items').insert(restockItemsPayload);
-
     for (const ri of data.items) {
       const item = items.find(i => i.id === ri.id);
       if (item) await updateItem(item.id, { quantityInStock: item.quantityInStock + ri.quantity, costPrice: ri.unit_cost });
@@ -741,40 +655,35 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const sellPrice = Number(row['Selling Price (₦)']);
       const costPrice = Number(row['Cost Price (₦)']);
       const qtyInCSV = Number(row['Quantity']);
-
+      
       if (!name || isNaN(qtyInCSV) || qtyInCSV <= 0) continue;
-
+      
       const existingItem = items.find(i => i.name.toLowerCase().trim() === name.toLowerCase().trim());
       
       if (existingItem) {
-        await updateItem(existingItem.id, {
-          quantityInStock: existingItem.quantityInStock + qtyInCSV,
-          costPrice: costPrice || existingItem.costPrice,
-          sellingPrice: sellPrice || existingItem.sellingPrice
+        await updateItem(existingItem.id, { 
+          quantityInStock: existingItem.quantityInStock + qtyInCSV, 
+          costPrice: costPrice || existingItem.costPrice, 
+          sellingPrice: sellPrice || existingItem.sellingPrice 
         });
       } else {
         const catId = await addCategory(catName || 'General');
-        await addItem({
-          name: name.trim(),
-          categoryId: catId,
-          unit: 'pcs',
-          costPrice: costPrice || 0,
-          sellingPrice: sellPrice || 0,
-          quantityInStock: qtyInCSV,
-          reorderLevel: 5
+        await addItem({ 
+          name: name.trim(), 
+          categoryId: catId, 
+          unit: 'pcs', 
+          costPrice: costPrice || 0, 
+          sellingPrice: sellPrice || 0, 
+          quantityInStock: qtyInCSV, 
+          reorderLevel: 5, 
+          allowFractional: false 
         });
       }
     }
   };
 
   const addChatMessage = (message: string, response: string) => {
-    setChatMessage(prev => [...prev, {
-      id: crypto.randomUUID(),
-      userId: currentUser?.id || 'guest',
-      message,
-      response,
-      createdAt: new Date().toISOString()
-    }]);
+    setChatMessage(prev => [...prev, { id: crypto.randomUUID(), userId: currentUser?.id || 'guest', message, response, createdAt: new Date().toISOString() }]);
   };
 
   return (

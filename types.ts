@@ -41,6 +41,7 @@ export interface Item {
   sellingPrice: number;
   quantityInStock: number;
   reorderLevel: number;
+  allowFractional: boolean; // New property
   expiryDate?: string;
   notes?: string;
   tags?: string[];
