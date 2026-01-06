@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ShopProvider, useShop } from './store';
 import Login from './pages/Login';
@@ -14,9 +13,10 @@ import UserManagement from './pages/UserManagement';
 import POSWithdrawals from './pages/POSWithdrawals';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import ConfirmationModal from './components/ConfirmationModal';
 
 const AppContent: React.FC = () => {
-  const { currentUser } = useShop();
+  const { currentUser, error, clearError } = useShop();
   const [currentPage, setCurrentPage] = useState('dashboard');
 
   if (!currentUser) return <Login />;
@@ -46,6 +46,17 @@ const AppContent: React.FC = () => {
           {renderPage()}
         </main>
       </div>
+
+      {/* Global Alert Modal for system errors and feedback */}
+      <ConfirmationModal 
+        isOpen={!!error}
+        onClose={clearError}
+        onConfirm={clearError}
+        title="Attention"
+        message={error || ''}
+        confirmLabel="OK"
+        variant="info"
+      />
     </div>
   );
 };

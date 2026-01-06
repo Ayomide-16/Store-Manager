@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LayoutDashboard, ShoppingCart, Package, History, Scale, Truck, MessageSquare, BarChart3, Users, LogOut, Banknote } from 'lucide-react';
 import { UserRole } from '../types';
 import { useShop } from '../store';
+import ConfirmationModal from './ConfirmationModal';
 
 interface SidebarProps {
   currentPage: string;
@@ -10,6 +11,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
   const { currentUser, logout, shopName } = useShop();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.SALESPERSON] },
@@ -18,11 +20,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
     { id: 'inventory', label: 'Inventory', icon: Package, roles: [UserRole.ADMIN, UserRole.SALESPERSON] },
     { id: 'sales-history', label: 'History', icon: History, roles: [UserRole.ADMIN, UserRole.SALESPERSON] },
     { id: 'restocks', label: 'Restock', icon: Truck, roles: [UserRole.ADMIN] },
-    { id: 'reconciliation', label: 'Reconciliation', icon: Scale, roles: [UserRole.ADMIN] },
+    { id: 'reconciliation', label: 'Closing Accounts', icon: Scale, roles: [UserRole.ADMIN] },
     { id: 'reports', label: 'Reports', icon: BarChart3, roles: [UserRole.ADMIN] },
     { id: 'ai-assistant', label: 'AI Assistant', icon: MessageSquare, roles: [UserRole.ADMIN] },
     { id: 'users', label: 'Users', icon: Users, roles: [UserRole.ADMIN] },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    setShowLogoutConfirm(false);
+  };
 
   return (
     <div className="hidden lg:flex flex-col w-64 bg-slate-900 text-white shrink-0 no-print border-r border-white/5">
@@ -63,13 +70,23 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
           </div>
         </div>
         <button
-          onClick={logout}
+          onClick={() => setShowLogoutConfirm(true)}
           className="w-full flex items-center justify-center gap-3 px-4 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 border border-transparent hover:border-rose-900/30 transition-all active:scale-95"
         >
           <LogOut className="w-4 h-4" />
           Logout Session
         </button>
       </div>
+
+      <ConfirmationModal 
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Logout Session?"
+        message="Are you sure you want to end your current session? You will need to sign in again to access the shop."
+        confirmLabel="Yes, Logout"
+        variant="warning"
+      />
     </div>
   );
 };

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, X, Bell, Search, ShoppingCart, User, LogOut, Package, AlertTriangle, ChevronRight, Settings, Banknote } from 'lucide-react';
+import { Menu, X, Bell, Search, ShoppingCart, User, LogOut, Package, AlertTriangle, ChevronRight, Settings, Banknote, ShieldCheck, Mail, Info, Key, Loader2, CheckCircle2 } from 'lucide-react';
 import { useShop } from '../store';
 import { UserRole } from '../types';
+import ConfirmationModal from './ConfirmationModal';
 
 interface HeaderProps {
   currentPage: string;
@@ -9,10 +10,19 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
-  const { currentUser, logout, items, shopName } = useShop();
+  const { currentUser, logout, changePassword, items, shopName, digitalBalance, triggerAlert } = useShop();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  
+  // Password change state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
   
   const notificationRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
@@ -27,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
     { id: 'inventory', label: 'Inventory', roles: [UserRole.ADMIN, UserRole.SALESPERSON] },
     { id: 'sales-history', label: 'Sales History', roles: [UserRole.ADMIN, UserRole.SALESPERSON] },
     { id: 'restocks', label: 'Restocks', roles: [UserRole.ADMIN] },
-    { id: 'reconciliation', label: 'Reconciliation', roles: [UserRole.ADMIN] },
+    { id: 'reconciliation', label: 'Closing Accounts', roles: [UserRole.ADMIN] },
     { id: 'reports', label: 'Reports', roles: [UserRole.ADMIN] },
     { id: 'ai-assistant', label: 'AI Assistant', roles: [UserRole.ADMIN] },
     { id: 'users', label: 'Users', roles: [UserRole.ADMIN] },
@@ -48,26 +58,46 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleLogout = async () => {
+    await logout();
+    setShowLogoutConfirm(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      return triggerAlert("Validation Error", "Passwords do not match.", "warning");
+    }
+    if (newPassword.length < 6) {
+      return triggerAlert("Validation Error", "Password must be at least 6 characters.", "warning");
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      await changePassword(newPassword);
+      setPasswordSuccess(true);
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (err: any) {
+      triggerAlert("Update Failed", err.message || "Failed to update password.", "danger");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-slate-200 no-print">
       <div className="px-4 h-16 flex items-center justify-between">
-        <button 
-          className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <button 
+            className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
           <h2 className="text-lg font-bold text-slate-800 hidden md:block">{pageTitle}</h2>
-          <div className="relative hidden lg:flex items-center">
-            <Search className="absolute left-3 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Quick search..." 
-              className="pl-9 pr-4 py-2 bg-slate-100 border-transparent rounded-full text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white w-64 transition-all"
-            />
-          </div>
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
@@ -147,17 +177,17 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                   <p className="font-bold truncate">{currentUser?.email}</p>
                 </div>
                 <div className="p-2">
-                  <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                  <button onClick={() => { setShowProfileModal(true); setIsAccountMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
                     <User className="w-4 h-4" />
                     Profile Info
                   </button>
-                  <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                  <button onClick={() => { setShowSettingsModal(true); setIsAccountMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
                     <Settings className="w-4 h-4" />
                     Account Settings
                   </button>
                   <div className="h-px bg-slate-100 my-2 mx-1"></div>
                   <button 
-                    onClick={logout}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
@@ -217,7 +247,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                 </div>
               </div>
               <button
-                onClick={logout}
+                onClick={() => setShowLogoutConfirm(true)}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-sm font-black uppercase tracking-widest text-red-600 bg-red-50 hover:bg-red-100 transition-all"
               >
                 <LogOut className="w-4 h-4" />
@@ -227,6 +257,110 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
           </div>
         </div>
       )}
+
+      {/* PROFILE INFO MODAL */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowProfileModal(false)}></div>
+           <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+              <div className="bg-indigo-600 p-8 text-center text-white relative">
+                 <button onClick={() => setShowProfileModal(false)} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                 <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl font-black mx-auto mb-4 backdrop-blur-sm border border-white/20">{currentUser?.fullName[0].toUpperCase()}</div>
+                 <h3 className="text-xl font-black">{currentUser?.fullName}</h3>
+                 <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mt-1 opacity-70">{currentUser?.role}</p>
+              </div>
+              <div className="p-8 space-y-4">
+                 <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
+                    <Mail className="w-5 h-5 text-indigo-600" />
+                    <div>
+                       <p className="text-[10px] font-black text-slate-400 uppercase">Email Address</p>
+                       <p className="font-bold text-slate-800">{currentUser?.email}</p>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
+                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                    <div>
+                       <p className="text-[10px] font-black text-slate-400 uppercase">Access Level</p>
+                       <p className="font-bold text-slate-800">{currentUser?.role.toUpperCase()}</p>
+                    </div>
+                 </div>
+                 <button onClick={() => setShowProfileModal(false)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl mt-4 transform active:scale-95 transition-all">Close Profile</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* ACCOUNT SETTINGS MODAL */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowSettingsModal(false)}></div>
+           <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Account Security</h3>
+                <button onClick={() => setShowSettingsModal(false)}><X className="w-6 h-6" /></button>
+              </div>
+              <div className="p-8 space-y-6">
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                     <Key className="w-3 h-3" /> Change Credentials
+                   </p>
+                   <div>
+                     <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">New Password</label>
+                     <input 
+                       type="password" required 
+                       placeholder="••••••••"
+                       className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-sm"
+                       value={newPassword}
+                       onChange={(e) => setNewPassword(e.target.value)}
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Confirm New Password</label>
+                     <input 
+                       type="password" required 
+                       placeholder="••••••••"
+                       className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-sm"
+                       value={confirmPassword}
+                       onChange={(e) => setConfirmPassword(e.target.value)}
+                     />
+                   </div>
+
+                   {passwordSuccess && (
+                     <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl flex items-center gap-2 text-[10px] font-bold uppercase border border-emerald-100">
+                       <CheckCircle2 className="w-4 h-4" /> Password Updated Successfully
+                     </div>
+                   )}
+
+                   <button 
+                     type="submit"
+                     disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+                     className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transform active:scale-95 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
+                   >
+                     {isUpdatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                     Update Security Key
+                   </button>
+                </form>
+
+                <div className="h-px bg-slate-100 my-2"></div>
+
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+                   <Info className="w-5 h-5 text-amber-600 shrink-0" />
+                   <p className="text-[10px] text-amber-800 font-bold uppercase tracking-wider leading-relaxed">For shop configuration changes or profile edits (email/name), contact the Super Admin or system provider.</p>
+                </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      <ConfirmationModal 
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Logout Session?"
+        message="Are you sure you want to log out?"
+        confirmLabel="Yes, Logout"
+        variant="warning"
+      />
     </header>
   );
 };

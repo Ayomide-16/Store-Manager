@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { 
   User, UserRole, Item, Category, Sale, SaleItem, 
@@ -7,7 +8,7 @@ import {
 } from './types';
 import { generateSaleNumber, generateSKU } from './utils';
 import { supabase, supabaseAdmin } from './lib/supabase/client';
-import { signIn, signUp, signOut } from './lib/supabase/auth';
+import { signIn, signUp, signOut, updatePassword } from './lib/supabase/auth';
 
 interface ShopContextType {
   currentUser: User | null;
@@ -27,10 +28,14 @@ interface ShopContextType {
   restockItems: RestockItem[];
   isLoading: boolean;
   error: string | null;
+  digitalBalance: number;
+  clearError: () => void;
+  triggerAlert: (title: string, message: string, variant?: 'danger' | 'warning' | 'info') => void;
   
   login: (email: string, password: string) => Promise<void>;
   register: (params: { email: string; password: string; fullName: string; shopName: string }) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (newPassword: string) => Promise<void>;
   addUser: (user: Partial<User> & { password?: string }) => Promise<void>;
   syncUsers: () => Promise<void>;
   updateUserAccount: (id: string, updates: Partial<User>) => Promise<void>;
@@ -38,7 +43,7 @@ interface ShopContextType {
   addItem: (item: Partial<Item>) => Promise<void>;
   addSale: (saleData: { items: any[], paymentMethod: PaymentMethod, additionalCharges: number }) => Promise<void>;
   startPOSFloat: (openingBalance: number) => Promise<void>;
-  addPOSTransaction: (data: any) => Promise<void>;
+  addPOSTransaction: (data: any) => Promise<string>;
   addPOSTransfer: (amount: number, source: 'shop_cash' | 'external') => void;
   addCategory: (name: string) => Promise<string>;
   addChatMessage: (message: string, response: string) => void;
@@ -86,6 +91,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Consolidated digital account balance (Bank Transfer + Card)
+  const digitalBalance = (
+    sales.filter(s => s.status === SaleStatus.COMPLETED && s.paymentMethod !== PaymentMethod.CASH)
+         .reduce((acc, s) => acc + s.totalAmount, 0) +
+    posTransactions.reduce((acc, t) => acc + t.totalPaid, 0)
+  );
+
+  const clearError = () => setError(null);
+
+  const triggerAlert = (title: string, message: string, variant: 'danger' | 'warning' | 'info' = 'danger') => {
+    setError(`${title}: ${message}`);
+  };
+
   const syncUsers = useCallback(async () => {
     try {
       setError(null);
@@ -104,7 +122,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       const msg = err.message === 'Failed to fetch' 
         ? 'Database connection error. Your Supabase project might be paused or unreachable.'
-        : err.message;
+        : (err.message || JSON.stringify(err));
       console.error('User Sync Error:', msg);
       setError(msg);
     }
@@ -130,10 +148,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saleNumber: sale.sale_number,
     status: sale.status,
     subtotal: sale.subtotal,
-    additionalCharges: sale.additional_charges,
-    totalAmount: sale.total_amount,
-    profitAmount: sale.profit_amount,
-    paymentMethod: sale.payment_method,
+    additional_charges: sale.additional_charges,
+    total_amount: sale.total_amount,
+    profit_amount: sale.profit_amount,
+    payment_method: sale.payment_method,
     createdBy: sale.created_by,
     saleDate: sale.sale_date,
     createdAt: sale.created_at,
@@ -170,7 +188,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const mapTxFromDB = (tx: any): POSWithdrawalTransaction => ({
     id: tx.id,
     floatId: tx.float_id,
-    transactionNumber: tx.transaction_number,
+    transaction_number: tx.transaction_number,
     customerName: tx.customer_name,
     withdrawalAmount: tx.withdrawal_amount,
     serviceCharge: tx.service_charge,
@@ -275,6 +293,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error("Critical data fetch error:", err.message);
           if (err.message === 'Failed to fetch') {
             setError('System could not reach the server. Please check your internet or Supabase project status.');
+          } else {
+            setError(err.message || JSON.stringify(err));
           }
         }
       };
@@ -301,6 +321,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await signOut();
     setCurrentUser(null);
+  };
+
+  const changePassword = async (newPassword: string) => {
+    const { error: updateError } = await updatePassword(newPassword);
+    if (updateError) throw updateError;
   };
 
   const addUser = async (userData: Partial<User> & { password?: string }) => {
@@ -347,6 +372,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addItem = async (itemData: Partial<Item>) => {
     const sku = itemData.sku || generateSKU(itemData.name || 'ITM');
     
+    // Fix: Using correct camelCase properties from Partial<Item>
     const payload: any = {
       name: itemData.name,
       sku,
@@ -382,6 +408,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addItems = async (newItems: Partial<Item>[]) => {
     if (!newItems || newItems.length === 0) return;
 
+    // Fix: Using correct camelCase properties from Partial<Item>
     const prepared = newItems.map(itemData => ({
       name: itemData.name,
       sku: itemData.sku || generateSKU(itemData.name || 'ITM'),
@@ -438,6 +465,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (updates.costPrice !== undefined) payload.cost_price = updates.costPrice;
     if (updates.sellingPrice !== undefined) payload.selling_price = updates.sellingPrice;
+    // Fixed property name from allow_fractional to allowFractional
     if (updates.allowFractional !== undefined) payload.allow_fractional = updates.allowFractional;
 
     const { error: bulkError } = await supabase
@@ -494,7 +522,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       additional_charges: data.additionalCharges,
       total_amount: subtotal + data.additionalCharges,
       profit_amount: totalProfit,
-      payment_method: data.paymentMethod,
+      payment_method: data.payment_method,
       created_by: currentUser?.id,
       sale_date: new Date().toISOString().split('T')[0]
     }).select().single();
@@ -548,10 +576,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (data) setPosFloats(prev => [mapFloatFromDB(data), ...prev]);
   };
 
-  const addPOSTransaction = async (data: any) => {
+  const addPOSTransaction = async (data: any): Promise<string> => {
     const todayStr = new Date().toISOString().split('T')[0];
     const active = posFloats.find(f => f.status === 'active' && f.date === todayStr);
     if (!active) throw new Error("No active float for today");
+    if (active.currentBalance < data.withdrawalAmount) throw new Error(`Insufficient cash in POS. Current balance: ₦${active.currentBalance.toLocaleString()}`);
+
     const { data: txData, error: txError } = await supabase.from('pos_transactions').insert({
       float_id: active.id,
       transaction_number: `POS-${Date.now()}`,
@@ -559,10 +589,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       withdrawal_amount: data.withdrawalAmount,
       service_charge: data.serviceCharge,
       total_paid: data.withdrawalAmount + data.serviceCharge,
-      payment_method: data.paymentMethod,
+      payment_method: data.payment_method,
       created_by: currentUser?.id,
       transaction_date: new Date().toISOString()
     }).select().single();
+    
     if (txError) throw txError;
     const newBalance = active.currentBalance - data.withdrawalAmount;
     const { data: updatedFloat } = await supabase.from('pos_floats').update({ 
@@ -644,7 +675,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.from('restock_items').insert(restockItemsPayload);
     for (const ri of data.items) {
       const item = items.find(i => i.id === ri.id);
-      if (item) await updateItem(item.id, { quantityInStock: item.quantityInStock + ri.quantity, costPrice: ri.unit_cost });
+      if (item) await updateItem(item.id, { quantityInStock: item.quantityInStock + ri.quantity, costPrice: ri.unitCost });
     }
   };
 
@@ -690,7 +721,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <ShopContext.Provider value={{
       currentUser, users, shopName, items, categories, sales, saleItems, inventoryLogs, chatHistory,
       posFloats, posTransactions, posTransfers, posChargeTiers, restocks, restockItems, isLoading, error,
-      login, register, logout, addUser, syncUsers, updateUserAccount, deleteUserAccount, 
+      digitalBalance, clearError, triggerAlert, login, register, logout, changePassword, addUser, syncUsers, updateUserAccount, deleteUserAccount, 
       addItem, updateItem, deleteItem, clearInventory, addSale, returnSale,
       startPOSFloat, addPOSTransaction, addPOSTransfer, addCategory, addChatMessage,
       addItems, bulkUpdateItems, resetPOSTiersToDefault, clearPOSTiers, addPOSChargeTier,
