@@ -143,15 +143,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updatedAt: item.updated_at
   });
 
+  // Fix: Property names updated to camelCase as defined in Sale interface
   const mapSaleFromDB = (sale: any): Sale => ({
     id: sale.id,
     saleNumber: sale.sale_number,
     status: sale.status,
     subtotal: sale.subtotal,
-    additional_charges: sale.additional_charges,
-    total_amount: sale.total_amount,
-    profit_amount: sale.profit_amount,
-    payment_method: sale.payment_method,
+    additionalCharges: sale.additional_charges,
+    totalAmount: sale.total_amount,
+    profitAmount: sale.profit_amount,
+    paymentMethod: sale.payment_method,
     createdBy: sale.created_by,
     saleDate: sale.sale_date,
     createdAt: sale.created_at,
@@ -185,10 +186,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updatedAt: f.updated_at
   });
 
+  // Fix: Property transaction_number renamed to transactionNumber to match POSWithdrawalTransaction interface
   const mapTxFromDB = (tx: any): POSWithdrawalTransaction => ({
     id: tx.id,
     floatId: tx.float_id,
-    transaction_number: tx.transaction_number,
+    transactionNumber: tx.transaction_number,
     customerName: tx.customer_name,
     withdrawalAmount: tx.withdrawal_amount,
     serviceCharge: tx.service_charge,
@@ -655,7 +657,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updatePOSChargeTier = async (id: string, updates: Partial<POSChargeTier>) => {
     const { data } = await supabase.from('pos_charge_tiers').update({ min_amount: updates.minAmount, max_amount: updates.maxAmount, charge_amount: updates.chargeAmount, is_active: updates.isActive }).eq('id', id).select().single();
-    if (data) setPosChargeTiers(prev => prev.map(t => t.id === id ? { id: data.id, minAmount: data.min_amount, maxAmount: data.max_amount, chargeAmount: data.charge_amount, isActive: data.is_active } : t));
+    if (data) setPosChargeTiers(prev => prev.map(t => t.id === id ? { id: data.id, minAmount: data.min_amount, maxAmount: data.max_amount, charge_amount: data.charge_amount, isActive: data.is_active } : t));
   };
 
   const deletePOSChargeTier = async (id: string) => {

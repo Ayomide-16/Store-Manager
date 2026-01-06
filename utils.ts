@@ -2,8 +2,17 @@
 import { CURRENCY_SYMBOL } from './constants';
 import * as XLSX from 'xlsx';
 
-export const formatCurrency = (amount: number): string => {
-  return `${CURRENCY_SYMBOL}${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/**
+ * Formats a number as Nigerian Naira.
+ * Defensively handles non-numeric values to prevent runtime crashes.
+ */
+export const formatCurrency = (amount: any): string => {
+  let value = Number(amount);
+  if (isNaN(value)) value = 0;
+  return `${CURRENCY_SYMBOL}${value.toLocaleString('en-NG', { 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  })}`;
 };
 
 export const generateSaleNumber = (): string => {
