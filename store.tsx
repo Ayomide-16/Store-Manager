@@ -10,6 +10,14 @@ import { generateSaleNumber, generateSKU } from './utils';
 import { supabase, supabaseAdmin } from './lib/supabase/client';
 import { signIn, signUp, signOut, updatePassword } from './lib/supabase/auth';
 
+const DEFAULT_POS_TIERS: POSChargeTier[] = [
+  { id: 't1', minAmount: 0, maxAmount: 5000, chargeAmount: 100, isActive: true },
+  { id: 't2', minAmount: 5001, maxAmount: 10000, chargeAmount: 200, isActive: true },
+  { id: 't3', minAmount: 10001, maxAmount: 20000, chargeAmount: 500, isActive: true },
+  { id: 't4', minAmount: 20001, maxAmount: 50000, chargeAmount: 1000, isActive: true },
+  { id: 't5', minAmount: 50001, maxAmount: 1000000, chargeAmount: 2000, isActive: true },
+];
+
 interface ShopContextType {
   currentUser: User | null;
   users: User[];
@@ -30,7 +38,7 @@ interface ShopContextType {
   error: string | null;
   digitalBalance: number;
   clearError: () => void;
-  triggerAlert: (title: string, message: string, variant?: 'danger' | 'warning' | 'info') => void;
+  triggerAlert: (title: string, message: any, variant?: 'danger' | 'warning' | 'info') => void;
   
   login: (email: string, password: string) => Promise<void>;
   register: (params: { email: string; password: string; fullName: string; shopName: string }) => Promise<void>;
@@ -65,12 +73,48 @@ interface ShopContextType {
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
-const DEFAULT_POS_TIERS: POSChargeTier[] = [
-  { id: 't1', minAmount: 100, maxAmount: 1000, chargeAmount: 50, isActive: true },
-  { id: 't2', minAmount: 1001, maxAmount: 5000, chargeAmount: 100, isActive: true },
-  { id: 't3', minAmount: 5001, maxAmount: 10000, chargeAmount: 200, isActive: true },
-  { id: 't4', minAmount: 10001, maxAmount: 20000, chargeAmount: 400, isActive: true }
-];
+// Improved getErrorMessage to prevent [object Object] in the UI and provide specific Postgres hints
+const getErrorMessage = (err: any): string => {
+  if (!err) return "Unknown error";
+  if (typeof err === 'string') return err;
+  
+  let msg = "An unexpected error occurred.";
+
+  // Postgrest / Supabase Error Object
+  if (err.message && typeof err.message === 'string') {
+    msg = err.message;
+  } else if (err.error && typeof err.error === 'string') {
+    msg = err.error;
+  } else if (err.error_description && typeof err.error_description === 'string') {
+    msg = err.error_description;
+  } else if (err.error && typeof err.error === 'object' && err.error.message) {
+    msg = err.error.message;
+  } else if (err.details && typeof err.details === 'string') {
+    msg = err.details;
+  } else {
+    try {
+      const stringified = JSON.stringify(err);
+      if (stringified === "{}" || stringified === "[]") {
+        if (err.toString && err.toString() !== "[object Object]") {
+          msg = err.toString();
+        } else if (err.name) {
+          msg = `${err.name}: ${err.message || 'No details'}`;
+        }
+      } else {
+        msg = stringified;
+      }
+    } catch (e) {
+      msg = String(err);
+    }
+  }
+
+  // Handle specific Postgres integer syntax error for fractional items
+  if (msg.includes('invalid input syntax for type integer') || msg.includes('invalid input syntax for integer')) {
+    msg += ". \n\nNOTE: This error is likely caused by the 'quantity' or 'quantity_in_stock' columns being set to INTEGER in Supabase. Please change them to NUMERIC to support 0.5/0.25 quantities.";
+  }
+
+  return msg;
+};
 
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -83,25 +127,24 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [posFloats, setPosFloats] = useState<POSWithdrawalFloat[]>([]);
   const [posTransactions, setPosTransactions] = useState<POSWithdrawalTransaction[]>([]);
   const [posTransfers, setPosTransfers] = useState<POSCashTransfer[]>([]);
-  const [posChargeTiers, setPosChargeTiers] = useState<POSChargeTier[]>([]);
+  const [posChargeTiers, setPosChargeTiers] = useState<POSChargeTier[]>(DEFAULT_POS_TIERS);
   const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
-  const [chatHistory, setChatMessage] = useState<ChatMessage[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [restocks, setRestocks] = useState<Restock[]>([]);
   const [restockItems, setRestockItems] = useState<RestockItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Consolidated digital account balance (Bank Transfer + Card)
   const digitalBalance = (
     sales.filter(s => s.status === SaleStatus.COMPLETED && s.paymentMethod !== PaymentMethod.CASH)
-         .reduce((acc, s) => acc + s.totalAmount, 0) +
-    posTransactions.reduce((acc, t) => acc + t.totalPaid, 0)
+         .reduce((acc, s) => acc + (Number(s.totalAmount) || 0), 0) +
+    posTransactions.reduce((acc, t) => acc + (Number(t.totalPaid) || 0), 0)
   );
 
   const clearError = () => setError(null);
 
-  const triggerAlert = (title: string, message: string, variant: 'danger' | 'warning' | 'info' = 'danger') => {
-    setError(`${title}: ${message}`);
+  const triggerAlert = (title: string, message: any, variant: 'danger' | 'warning' | 'info' = 'danger') => {
+    setError(`${title}: ${getErrorMessage(message)}`);
   };
 
   const syncUsers = useCallback(async () => {
@@ -120,9 +163,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })));
       }
     } catch (err: any) {
-      const msg = err.message === 'Failed to fetch' 
-        ? 'Database connection error. Your Supabase project might be paused or unreachable.'
-        : (err.message || JSON.stringify(err));
+      const msg = getErrorMessage(err);
       console.error('User Sync Error:', msg);
       setError(msg);
     }
@@ -134,24 +175,23 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sku: item.sku,
     categoryId: item.category_id,
     unit: item.unit,
-    costPrice: item.cost_price,
-    sellingPrice: item.selling_price,
-    quantityInStock: item.quantity_in_stock,
-    reorderLevel: item.reorder_level,
+    costPrice: Number(item.cost_price),
+    sellingPrice: Number(item.selling_price),
+    quantityInStock: Number(item.quantity_in_stock),
+    reorderLevel: Number(item.reorder_level),
     allowFractional: item.allow_fractional === true,
     createdAt: item.created_at,
     updatedAt: item.updated_at
   });
 
-  // Fix: Property names updated to camelCase as defined in Sale interface
   const mapSaleFromDB = (sale: any): Sale => ({
     id: sale.id,
     saleNumber: sale.sale_number,
     status: sale.status,
-    subtotal: sale.subtotal,
-    additionalCharges: sale.additional_charges,
-    totalAmount: sale.total_amount,
-    profitAmount: sale.profit_amount,
+    subtotal: Number(sale.subtotal),
+    additionalCharges: Number(sale.additional_charges),
+    totalAmount: Number(sale.total_amount),
+    profitAmount: Number(sale.profit_amount),
     paymentMethod: sale.payment_method,
     createdBy: sale.created_by,
     saleDate: sale.sale_date,
@@ -159,165 +199,86 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updatedAt: sale.updated_at
   });
 
-  const mapSaleItemFromDB = (si: any): SaleItem => ({
-    id: si.id,
-    saleId: si.sale_id,
-    itemId: si.item_id,
-    itemName: si.item_name,
-    quantity: si.quantity,
-    unitPrice: si.unit_price,
-    costPrice: si.cost_price,
-    lineTotal: si.line_total,
-    profitMargin: si.profit_margin,
-    createdAt: si.created_at
-  });
+  const syncData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [itemsRes, salesRes, categoriesRes, posFloatsRes, posTxsRes, posTransfersRes, restocksRes] = await Promise.all([
+        supabase.from('items').select('*').order('name'),
+        supabase.from('sales').select('*').order('created_at', { ascending: false }),
+        supabase.from('categories').select('*').order('name'),
+        supabase.from('pos_floats').select('*').order('created_at', { ascending: false }),
+        supabase.from('pos_transactions').select('*').order('created_at', { ascending: false }),
+        supabase.from('pos_transfers').select('*').order('created_at', { ascending: false }),
+        supabase.from('restocks').select('*').order('created_at', { ascending: false })
+      ]);
 
-  const mapFloatFromDB = (f: any): POSWithdrawalFloat => ({
-    id: f.id,
-    date: f.date,
-    openingBalance: f.opening_balance,
-    currentBalance: f.current_balance,
-    closingBalance: f.closing_balance,
-    totalWithdrawalsProcessed: f.total_withdrawals_processed,
-    totalChargesEarned: f.total_charges_earned,
-    status: f.status,
-    createdBy: f.created_by,
-    createdAt: f.created_at,
-    updatedAt: f.updated_at
-  });
+      if (itemsRes.data) setItems(itemsRes.data.map(mapItemFromDB));
+      if (salesRes.data) setSales(salesRes.data.map(mapSaleFromDB));
+      if (categoriesRes.data) setCategories(categoriesRes.data);
+      if (posFloatsRes.data) setPosFloats(posFloatsRes.data);
+      if (posTxsRes.data) setPosTransactions(posTxsRes.data);
+      if (posTransfersRes.data) setPosTransfers(posTransfersRes.data);
+      if (restocksRes.data) setRestocks(restocksRes.data);
 
-  // Fix: Property transaction_number renamed to transactionNumber to match POSWithdrawalTransaction interface
-  const mapTxFromDB = (tx: any): POSWithdrawalTransaction => ({
-    id: tx.id,
-    floatId: tx.float_id,
-    transactionNumber: tx.transaction_number,
-    customerName: tx.customer_name,
-    withdrawalAmount: tx.withdrawal_amount,
-    serviceCharge: tx.service_charge,
-    totalPaid: tx.total_paid,
-    paymentMethod: tx.payment_method,
-    createdBy: tx.created_by,
-    transactionDate: tx.transaction_date,
-    createdAt: tx.created_at
-  });
-
-  const mapTransferFromDB = (t: any): POSCashTransfer => ({
-    id: t.id,
-    floatId: t.float_id,
-    amount: t.amount,
-    source: t.source,
-    transferredBy: t.transferred_by,
-    createdAt: t.created_at
-  });
+      await syncUsers();
+    } catch (err: any) {
+      triggerAlert('Sync Error', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [syncUsers]);
 
   useEffect(() => {
-    const initSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const metadata = session.user.user_metadata;
-          setCurrentUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            fullName: metadata.full_name || 'User',
-            role: metadata.role || UserRole.SALESPERSON,
-            createdAt: session.user.created_at
-          });
-          if (metadata.shop_name) setShopName(metadata.shop_name);
-        }
-      } catch (err: any) {
-        console.error('Session Init Error:', err.message);
-      } finally {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const user: User = {
+          id: session.user.id,
+          email: session.user.email!,
+          fullName: session.user.user_metadata.full_name,
+          role: session.user.user_metadata.role,
+          createdAt: session.user.created_at
+        };
+        setCurrentUser(user);
+        setShopName(session.user.user_metadata.shop_name || 'NaijaShop');
+        syncData();
+      } else {
         setIsLoading(false);
       }
     };
-
-    initSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata;
-        setCurrentUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          fullName: metadata.full_name || 'User',
-          role: metadata.role || UserRole.SALESPERSON,
-          createdAt: session.user.created_at
-        });
-        if (metadata.shop_name) setShopName(metadata.shop_name);
-      } else {
-        setCurrentUser(null);
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      const fetchData = async () => {
-        try {
-          const [
-            { data: itemsData },
-            { data: catsData },
-            { data: salesData },
-            { data: saleItemsData },
-            { data: floatsData },
-            { data: txsData },
-            { data: transfersData },
-            { data: tiersData }
-          ] = await Promise.all([
-            supabase.from('items').select('*'),
-            supabase.from('categories').select('*'),
-            supabase.from('sales').select('*').order('created_at', { ascending: false }),
-            supabase.from('sale_items').select('*'),
-            supabase.from('pos_floats').select('*').order('date', { ascending: false }),
-            supabase.from('pos_transactions').select('*').order('created_at', { ascending: false }),
-            supabase.from('pos_transfers').select('*'),
-            supabase.from('pos_charge_tiers').select('*')
-          ]);
-          
-          if (currentUser.role === UserRole.ADMIN) {
-             await syncUsers();
-          }
-
-          if (itemsData) setItems(itemsData.map(mapItemFromDB));
-          if (catsData) setCategories(catsData);
-          if (salesData) setSales(salesData.map(mapSaleFromDB));
-          if (saleItemsData) setSaleItems(saleItemsData.map(mapSaleItemFromDB));
-          if (floatsData) setPosFloats(floatsData.map(mapFloatFromDB));
-          if (txsData) setPosTransactions(txsData.map(mapTxFromDB));
-          if (transfersData) setPosTransfers(transfersData.map(mapTransferFromDB));
-          if (tiersData) setPosChargeTiers(tiersData.length > 0 ? tiersData : DEFAULT_POS_TIERS);
-        } catch (err: any) {
-          console.error("Critical data fetch error:", err.message);
-          if (err.message === 'Failed to fetch') {
-            setError('System could not reach the server. Please check your internet or Supabase project status.');
-          } else {
-            setError(err.message || JSON.stringify(err));
-          }
-        }
-      };
-      fetchData();
-    }
-  }, [currentUser, syncUsers]);
+    checkUser();
+  }, [syncData]);
 
   const login = async (email: string, password: string) => {
-    const { error: authError } = await signIn({ email, password });
-    if (authError) throw authError;
+    const { data, error } = await signIn({ email, password });
+    if (error) throw error;
+    if (data?.user) {
+      setCurrentUser({
+        id: data.user.id,
+        email: data.user.email!,
+        fullName: data.user.user_metadata.full_name,
+        role: data.user.user_metadata.role,
+        createdAt: data.user.created_at
+      });
+      setShopName(data.user.user_metadata.shop_name || 'NaijaShop');
+      syncData();
+    }
   };
 
-  const register = async ({ email, password, fullName, shopName }: any) => {
-    const { error: authError } = await signUp({ 
-      email, 
-      password, 
-      fullName, 
-      role: UserRole.ADMIN,
-      shopName
-    });
-    if (authError) throw authError;
+  const register = async (params: { email: string; password: string; fullName: string; shopName: string }) => {
+    const { data, error } = await signUp({ ...params, role: UserRole.ADMIN });
+    if (error) throw error;
+    if (data?.user) {
+      setCurrentUser({
+        id: data.user.id,
+        email: data.user.email!,
+        fullName: data.user.user_metadata.full_name,
+        role: data.user.user_metadata.role,
+        createdAt: data.user.created_at
+      });
+      setShopName(params.shopName);
+      syncData();
+    }
   };
 
   const logout = async () => {
@@ -326,408 +287,301 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const changePassword = async (newPassword: string) => {
-    const { error: updateError } = await updatePassword(newPassword);
-    if (updateError) throw updateError;
+    const { error } = await updatePassword(newPassword);
+    if (error) throw error;
   };
 
-  const addUser = async (userData: Partial<User> & { password?: string }) => {
-    const { error: adminError } = await supabaseAdmin.auth.admin.createUser({
-      email: userData.email!,
-      password: userData.password || 'NaijaShop2024!',
-      user_metadata: {
-        full_name: userData.fullName,
-        role: userData.role || UserRole.SALESPERSON,
-        shop_name: shopName
-      },
-      email_confirm: true 
+  const addUser = async (user: Partial<User> & { password?: string }) => {
+    const { error } = await supabaseAdmin.auth.admin.createUser({
+      email: user.email,
+      password: user.password,
+      email_confirm: true,
+      user_metadata: { full_name: user.fullName, role: user.role, shop_name: shopName }
     });
-
-    if (adminError) throw adminError;
-    await syncUsers();
+    if (error) throw error;
+    syncUsers();
   };
 
   const updateUserAccount = async (id: string, updates: Partial<User>) => {
-    const { error: adminError } = await supabaseAdmin.auth.admin.updateUserById(id, {
-      email: updates.email,
-      user_metadata: {
-        full_name: updates.fullName,
-        role: updates.role,
-        shop_name: shopName 
-      }
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      user_metadata: { full_name: updates.fullName, role: updates.role }
     });
-
-    if (adminError) throw adminError;
-    await syncUsers();
+    if (error) throw error;
+    syncUsers();
   };
 
   const deleteUserAccount = async (id: string) => {
-    try {
-      const { error: adminError } = await supabaseAdmin.auth.admin.deleteUser(id);
-      if (adminError) throw adminError;
-      setUsers(prev => prev.filter(u => u.id !== id));
-    } catch (err: any) {
-      console.error("User deletion error:", err.message);
-      throw err;
-    }
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (error) throw error;
+    syncUsers();
   };
 
-  const addItem = async (itemData: Partial<Item>) => {
-    const sku = itemData.sku || generateSKU(itemData.name || 'ITM');
-    
-    // Fix: Using correct camelCase properties from Partial<Item>
-    const payload: any = {
-      name: itemData.name,
-      sku,
-      category_id: itemData.categoryId || null,
-      unit: itemData.unit || 'pcs',
-      cost_price: itemData.costPrice || 0,
-      selling_price: itemData.sellingPrice || 0,
-      quantity_in_stock: itemData.quantityInStock || 0,
-      reorder_level: itemData.reorderLevel || 5,
-      allow_fractional: itemData.allowFractional === true
-    };
-
-    const { data, error: itemError } = await supabase
-      .from('items')
-      .insert(payload)
-      .select()
-      .single();
-
-    if (itemError) throw itemError;
-    if (data) setItems(prev => [mapItemFromDB(data), ...prev]);
+  const addItem = async (item: Partial<Item>) => {
+    const { data, error } = await supabase.from('items').insert({
+      name: item.name,
+      sku: item.sku || generateSKU(item.name || 'ITEM'),
+      category_id: item.categoryId,
+      unit: item.unit,
+      cost_price: item.costPrice,
+      selling_price: item.sellingPrice,
+      quantity_in_stock: item.quantityInStock,
+      reorder_level: item.reorderLevel,
+      allow_fractional: item.allowFractional
+    }).select().single();
+    if (error) throw error;
+    setItems(prev => [...prev, mapItemFromDB(data)]);
   };
 
-  const clearInventory = async () => {
-    try {
-      const { error: clearError } = await supabase.from('items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (clearError) throw clearError;
-      setItems([]);
-    } catch (err: any) {
-      throw err;
-    }
-  };
-
-  const addItems = async (newItems: Partial<Item>[]) => {
-    if (!newItems || newItems.length === 0) return;
-
-    // Fix: Using correct camelCase properties from Partial<Item>
-    const prepared = newItems.map(itemData => ({
-      name: itemData.name,
-      sku: itemData.sku || generateSKU(itemData.name || 'ITM'),
-      category_id: itemData.categoryId || null,
-      unit: itemData.unit || 'pcs',
-      cost_price: itemData.costPrice || 0,
-      selling_price: itemData.sellingPrice || 0,
-      quantity_in_stock: itemData.quantityInStock || 0,
-      reorder_level: 5,
-      allow_fractional: itemData.allowFractional === true
-    }));
-
-    const { data, error: itemsError } = await supabase.from('items').insert(prepared).select();
-    if (itemsError) throw itemsError;
-
-    if (data) {
-      setItems(prev => [...prev, ...data.map(mapItemFromDB)]);
-    }
-  };
-
-  const updateItem = async (id: string, updates: Partial<Item>) => {
-    const payload: any = {
-      updated_at: new Date().toISOString()
-    };
-    
-    if (updates.name !== undefined) payload.name = updates.name;
-    if (updates.categoryId !== undefined) payload.category_id = updates.categoryId || null;
-    if (updates.costPrice !== undefined) payload.cost_price = Number(updates.costPrice);
-    if (updates.sellingPrice !== undefined) payload.selling_price = Number(updates.sellingPrice);
-    if (updates.quantityInStock !== undefined) payload.quantity_in_stock = Number(updates.quantityInStock);
-    if (updates.reorderLevel !== undefined) payload.reorder_level = Number(updates.reorderLevel);
-    if (updates.unit !== undefined) payload.unit = updates.unit;
-    if (updates.allowFractional !== undefined) payload.allow_fractional = updates.allowFractional === true;
-
-    const { data, error: updateError } = await supabase
-      .from('items')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-    
-    if (data) {
-      const updatedItem = mapItemFromDB(data);
-      setItems(prev => prev.map(item => item.id === id ? updatedItem : item));
-    }
-  };
-
-  const bulkUpdateItems = async (ids: string[], updates: Partial<Item>) => {
-    const payload: any = {
-      updated_at: new Date().toISOString()
-    };
-    
-    if (updates.costPrice !== undefined) payload.cost_price = updates.costPrice;
-    if (updates.sellingPrice !== undefined) payload.selling_price = updates.sellingPrice;
-    // Fixed property name from allow_fractional to allowFractional
-    if (updates.allowFractional !== undefined) payload.allow_fractional = updates.allowFractional;
-
-    const { error: bulkError } = await supabase
-      .from('items')
-      .update(payload)
-      .in('id', ids);
-
-    if (bulkError) throw bulkError;
-    setItems(prev => prev.map(item => ids.includes(item.id) ? { ...item, ...updates } : item));
-  };
-
-  const deleteItem = async (id: string) => {
-    const { error: deleteError } = await supabase.from('items').delete().eq('id', id);
-    if (deleteError) throw deleteError;
-    setItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const addCategory = async (name: string) => {
-    const trimmedName = name.trim();
-    if (!trimmedName) return '';
-    const existing = categories.find(c => c.name.toLowerCase() === trimmedName.toLowerCase());
-    if (existing) return existing.id;
-    const { data, error: catError } = await supabase.from('categories').upsert({ name: trimmedName }, { onConflict: 'name' }).select().single();
-    if (catError) {
-      const { data: fetched } = await supabase.from('categories').select('id').eq('name', trimmedName).single();
-      if (fetched) return fetched.id;
-      throw catError;
-    }
-    if (data) {
-      setCategories(prev => [...prev, data]);
-      return data.id;
-    }
-    return '';
-  };
-
-  const addSale = async (data: any) => {
+  const addSale = async (saleData: { items: any[], paymentMethod: PaymentMethod, additionalCharges: number }) => {
+    if (!currentUser) return;
     const saleNumber = generateSaleNumber();
+    
     let subtotal = 0;
-    let totalProfit = 0;
-
-    const itemsToUpdate = data.items.map((cartItem: any) => {
-      const originalItem = items.find(i => i.id === cartItem.id)!;
-      const lineTotal = originalItem.sellingPrice * cartItem.quantity;
-      const profit = (originalItem.sellingPrice - originalItem.costPrice) * cartItem.quantity;
-      subtotal += lineTotal;
-      totalProfit += profit;
-      return { ...cartItem, originalItem, lineTotal, profit, newStock: originalItem.quantityInStock - cartItem.quantity };
+    let totalCost = 0;
+    
+    const itemsToInsert = saleData.items.map(cartItem => {
+      const item = items.find(i => i.id === cartItem.id)!;
+      subtotal += item.sellingPrice * cartItem.quantity;
+      totalCost += item.costPrice * cartItem.quantity;
+      return {
+        item_id: item.id,
+        item_name: item.name,
+        quantity: cartItem.quantity,
+        unit_price: item.sellingPrice,
+        cost_price: item.costPrice,
+        line_total: item.sellingPrice * cartItem.quantity,
+        profit_margin: ((item.sellingPrice - item.costPrice) / item.sellingPrice) * 100
+      };
     });
 
-    const { data: saleData, error: saleError } = await supabase.from('sales').insert({
+    const totalAmount = subtotal + saleData.additionalCharges;
+    const profitAmount = totalAmount - totalCost;
+
+    const { data: sale, error: saleErr } = await supabase.from('sales').insert({
       sale_number: saleNumber,
       status: SaleStatus.COMPLETED,
       subtotal,
-      additional_charges: data.additionalCharges,
-      total_amount: subtotal + data.additionalCharges,
-      profit_amount: totalProfit,
-      payment_method: data.payment_method,
-      created_by: currentUser?.id,
+      additional_charges: saleData.additionalCharges,
+      total_amount: totalAmount,
+      profit_amount: profitAmount,
+      payment_method: saleData.payment_method,
+      created_by: currentUser.id,
       sale_date: new Date().toISOString().split('T')[0]
     }).select().single();
 
-    if (saleError) throw saleError;
+    if (saleErr) throw saleErr;
 
-    const saleItemsPayload = itemsToUpdate.map((i: any) => ({
-      sale_id: saleData.id,
-      item_id: i.id,
-      item_name: i.originalItem.name,
-      quantity: i.quantity,
-      unit_price: i.originalItem.sellingPrice,
-      cost_price: i.originalItem.costPrice,
-      line_total: i.lineTotal,
-      profit_margin: ((i.originalItem.sellingPrice - i.originalItem.costPrice) / i.originalItem.sellingPrice) * 100
-    }));
+    const { error: itemsErr } = await supabase.from('sale_items').insert(
+      itemsToInsert.map(si => ({ ...si, sale_id: sale.id }))
+    );
 
-    const { data: siData, error: siError } = await supabase.from('sale_items').insert(saleItemsPayload).select();
-    if (siError) throw siError;
+    if (itemsErr) throw itemsErr;
 
-    for (const i of itemsToUpdate) {
-      await updateItem(i.id, { quantityInStock: i.newStock });
-    }
-
-    if (saleData) setSales(prev => [mapSaleFromDB(saleData), ...prev]);
-    if (siData) setSaleItems(prev => [...prev, ...siData.map(mapSaleItemFromDB)]);
+    // Simplified sync
+    syncData();
   };
 
-  const returnSale = async (id: string, reason: string) => {
-    const { data: saleData, error: saleError } = await supabase.from('sales').update({ status: SaleStatus.RETURNED, return_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).select().single();
-    if (saleError) throw saleError;
-    const itemsToRestore = saleItems.filter(si => si.saleId === id);
-    for (const si of itemsToRestore) {
-      const item = items.find(i => i.id === si.itemId);
-      if (item) await updateItem(item.id, { quantityInStock: item.quantityInStock + si.quantity });
-    }
-    if (saleData) setSales(prev => prev.map(s => s.id === id ? mapSaleFromDB(saleData) : s));
-  };
+  const activeFloat = posFloats.find(f => f.status === 'active');
 
   const startPOSFloat = async (openingBalance: number) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const { data, error: floatError } = await supabase.from('pos_floats').insert({
-      date: todayStr,
+    if (!currentUser) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase.from('pos_floats').insert({
+      date: today,
       opening_balance: openingBalance,
       current_balance: openingBalance,
       status: 'active',
-      created_by: currentUser?.id
+      created_by: currentUser.id
     }).select().single();
-    if (floatError) throw floatError;
-    await supabase.from('pos_transfers').insert({ float_id: data.id, amount: openingBalance, source: 'external', transferred_by: currentUser?.id });
-    if (data) setPosFloats(prev => [mapFloatFromDB(data), ...prev]);
+    if (error) throw error;
+    setPosFloats(prev => [data, ...prev]);
   };
 
-  const addPOSTransaction = async (data: any): Promise<string> => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const active = posFloats.find(f => f.status === 'active' && f.date === todayStr);
-    if (!active) throw new Error("No active float for today");
-    if (active.currentBalance < data.withdrawalAmount) throw new Error(`Insufficient cash in POS. Current balance: ₦${active.currentBalance.toLocaleString()}`);
-
-    const { data: txData, error: txError } = await supabase.from('pos_transactions').insert({
-      float_id: active.id,
-      transaction_number: `POS-${Date.now()}`,
+  const addPOSTransaction = async (data: any) => {
+    if (!currentUser || !activeFloat) throw new Error("No active float found");
+    const txNum = `POS-${Math.random().toString(36).substring(7).toUpperCase()}`;
+    const totalPaid = data.withdrawalAmount + data.serviceCharge;
+    
+    const { error } = await supabase.from('pos_transactions').insert({
+      float_id: activeFloat.id,
+      transaction_number: txNum,
       customer_name: data.customerName,
       withdrawal_amount: data.withdrawalAmount,
       service_charge: data.serviceCharge,
-      total_paid: data.withdrawalAmount + data.serviceCharge,
-      payment_method: data.payment_method,
-      created_by: currentUser?.id,
+      total_paid: totalPaid,
+      payment_method: data.paymentMethod,
+      created_by: currentUser.id,
       transaction_date: new Date().toISOString()
-    }).select().single();
-    
-    if (txError) throw txError;
-    const newBalance = active.currentBalance - data.withdrawalAmount;
-    const { data: updatedFloat } = await supabase.from('pos_floats').update({ 
-      current_balance: newBalance,
-      total_withdrawals_processed: active.totalWithdrawalsProcessed + 1,
-      total_charges_earned: active.totalChargesEarned + data.serviceCharge,
-      updated_at: new Date().toISOString()
-    }).eq('id', active.id).select().single();
-    if (txData) setPosTransactions(prev => [mapTxFromDB(txData), ...prev]);
-    if (updatedFloat) setPosFloats(prev => prev.map(f => f.id === active.id ? mapFloatFromDB(updatedFloat) : f));
-    return txData.transaction_number;
+    });
+
+    if (error) throw error;
+
+    syncData();
+    return txNum;
   };
 
   const addPOSTransfer = async (amount: number, source: 'shop_cash' | 'external') => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const active = posFloats.find(f => f.status === 'active' && f.date === todayStr);
-    if (!active) return;
-    const { data, error: transferError } = await supabase.from('pos_transfers').insert({ float_id: active.id, amount, source, transferred_by: currentUser?.id }).select().single();
-    if (transferError) throw transferError;
-    const newBalance = active.currentBalance + amount;
-    const { data: updatedFloat } = await supabase.from('pos_floats').update({ current_balance: newBalance, updated_at: new Date().toISOString() }).eq('id', active.id).select().single();
-    if (data) setPosTransfers(prev => [...prev, mapTransferFromDB(data)]);
-    if (updatedFloat) setPosFloats(prev => prev.map(f => f.id === active.id ? mapFloatFromDB(updatedFloat) : f));
+    if (!currentUser || !activeFloat) return;
+    const { error } = await supabase.from('pos_transfers').insert({
+      float_id: activeFloat.id,
+      amount,
+      source,
+      transferred_by: currentUser.id
+    });
+    if (error) throw error;
+    syncData();
+  };
+
+  const addCategory = async (name: string) => {
+    const { data, error } = await supabase.from('categories').insert({ name }).select().single();
+    if (error) throw error;
+    setCategories(prev => [...prev, data]);
+    return data.id;
+  };
+
+  const addChatMessage = (message: string, response: string) => {
+    if (!currentUser) return;
+    const newMessage: ChatMessage = {
+      id: Math.random().toString(36).substring(7),
+      userId: currentUser.id,
+      message,
+      response,
+      createdAt: new Date().toISOString()
+    };
+    setChatHistory(prev => [...prev, newMessage]);
+  };
+
+  const deleteItem = async (id: string) => {
+    const { error } = await supabase.from('items').delete().eq('id', id);
+    if (error) throw error;
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const clearInventory = async () => {
+    const { error } = await supabase.from('items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) throw error;
+    setItems([]);
+  };
+
+  const updateItem = async (id: string, updates: Partial<Item>) => {
+    const dbUpdates: any = {};
+    if (updates.name) dbUpdates.name = updates.name;
+    if (updates.sku) dbUpdates.sku = updates.sku;
+    if (updates.categoryId) dbUpdates.category_id = updates.categoryId;
+    if (updates.unit) dbUpdates.unit = updates.unit;
+    if (updates.costPrice !== undefined) dbUpdates.cost_price = updates.costPrice;
+    if (updates.sellingPrice !== undefined) dbUpdates.selling_price = updates.sellingPrice;
+    if (updates.quantityInStock !== undefined) dbUpdates.quantity_in_stock = updates.quantityInStock;
+    if (updates.reorderLevel !== undefined) dbUpdates.reorder_level = updates.reorderLevel;
+    if (updates.allowFractional !== undefined) dbUpdates.allow_fractional = updates.allowFractional;
+
+    const { error } = await supabase.from('items').update(dbUpdates).eq('id', id);
+    if (error) throw error;
+    syncData();
   };
 
   const deletePOSTransaction = async (id: string) => {
-    const tx = posTransactions.find(t => t.id === id);
-    if (!tx) return;
-    const { error: deleteError } = await supabase.from('pos_transactions').delete().eq('id', id);
-    if (deleteError) throw deleteError;
-    const float = posFloats.find(f => f.id === tx.floatId);
-    if (float) {
-      const { data: updatedFloat } = await supabase.from('pos_floats').update({
-        current_balance: float.currentBalance + tx.withdrawalAmount,
-        total_withdrawals_processed: float.totalWithdrawalsProcessed - 1,
-        total_charges_earned: float.totalChargesEarned - tx.serviceCharge,
-        updated_at: new Date().toISOString()
-      }).eq('id', float.id).select().single();
-      if (updatedFloat) setPosFloats(prev => prev.map(f => f.id === float.id ? mapFloatFromDB(updatedFloat) : f));
-    }
-    setPosTransactions(prev => prev.filter(t => t.id !== id));
+    const { error } = await supabase.from('pos_transactions').delete().eq('id', id);
+    if (error) throw error;
+    syncData();
   };
 
-  const resetPOSTiersToDefault = async () => {
-    await clearPOSTiers();
-    const { data } = await supabase.from('pos_charge_tiers').insert(DEFAULT_POS_TIERS.map(t => ({ min_amount: t.minAmount, max_amount: t.maxAmount, charge_amount: t.chargeAmount, is_active: true }))).select();
-    if (data) setPosChargeTiers(data.map(t => ({ id: t.id, minAmount: t.min_amount, maxAmount: t.max_amount, chargeAmount: t.charge_amount, isActive: t.is_active })));
+  const returnSale = async (id: string, reason: string) => {
+    const { error } = await supabase.from('sales').update({ 
+      status: SaleStatus.RETURNED,
+      return_reason: reason 
+    }).eq('id', id);
+    if (error) throw error;
+    syncData();
   };
 
-  const clearPOSTiers = async () => {
-    await supabase.from('pos_charge_tiers').delete().neq('id', '0');
-    setPosChargeTiers([]);
+  const addItems = async (newItems: Partial<Item>[]) => {
+    const dbItems = newItems.map(item => ({
+      name: item.name,
+      sku: item.sku || generateSKU(item.name || 'ITEM'),
+      category_id: item.categoryId,
+      unit: item.unit,
+      cost_price: item.costPrice,
+      selling_price: item.sellingPrice,
+      quantity_in_stock: item.quantityInStock,
+      reorder_level: item.reorderLevel,
+      allow_fractional: item.allowFractional
+    }));
+    const { error } = await supabase.from('items').insert(dbItems);
+    if (error) throw error;
+    syncData();
   };
 
-  const addPOSChargeTier = async (tier: Partial<POSChargeTier>) => {
-    const { data } = await supabase.from('pos_charge_tiers').insert({ min_amount: tier.minAmount, max_amount: tier.maxAmount, charge_amount: tier.chargeAmount, is_active: true }).select().single();
-    if (data) setPosChargeTiers(prev => [...prev, { id: data.id, minAmount: data.min_amount, maxAmount: data.max_amount, chargeAmount: data.charge_amount, isActive: data.is_active }]);
+  const bulkUpdateItems = async (ids: string[], updates: Partial<Item>) => {
+    const dbUpdates: any = {};
+    if (updates.categoryId) dbUpdates.category_id = updates.categoryId;
+    if (updates.reorderLevel !== undefined) dbUpdates.reorder_level = updates.reorderLevel;
+
+    const { error } = await supabase.from('items').update(dbUpdates).in('id', ids);
+    if (error) throw error;
+    syncData();
   };
 
-  const updatePOSChargeTier = async (id: string, updates: Partial<POSChargeTier>) => {
-    const { data } = await supabase.from('pos_charge_tiers').update({ min_amount: updates.minAmount, max_amount: updates.maxAmount, charge_amount: updates.chargeAmount, is_active: updates.isActive }).eq('id', id).select().single();
-    if (data) setPosChargeTiers(prev => prev.map(t => t.id === id ? { id: data.id, minAmount: data.min_amount, maxAmount: data.max_amount, charge_amount: data.charge_amount, isActive: data.is_active } : t));
+  const resetPOSTiersToDefault = () => setPosChargeTiers(DEFAULT_POS_TIERS);
+  const clearPOSTiers = () => setPosChargeTiers([]);
+  const addPOSChargeTier = (tier: Partial<POSChargeTier>) => {
+    const newTier = { ...tier, id: Math.random().toString(36).substring(7), isActive: true } as POSChargeTier;
+    setPosChargeTiers(prev => [...prev, newTier]);
   };
-
-  const deletePOSChargeTier = async (id: string) => {
-    await supabase.from('pos_charge_tiers').delete().eq('id', id);
+  const updatePOSChargeTier = (id: string, updates: Partial<POSChargeTier>) => {
+    setPosChargeTiers(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+  const deletePOSChargeTier = (id: string) => {
     setPosChargeTiers(prev => prev.filter(t => t.id !== id));
   };
 
   const addRestock = async (data: { supplierName: string; items: any[] }) => {
-    const { data: restockHead, error: restockError } = await supabase.from('restocks').insert({
+    if (!currentUser) return;
+    const { data: restock, error: restockErr } = await supabase.from('restocks').insert({
       supplier_name: data.supplierName,
       restock_date: new Date().toISOString().split('T')[0],
-      total_amount: data.items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0),
-      created_by: currentUser?.id
+      total_amount: data.items.reduce((acc, i) => acc + (i.quantity * i.unitCost), 0),
+      created_by: currentUser.id
     }).select().single();
-    if (restockError) throw restockError;
-    const restockItemsPayload = data.items.map(ri => ({ restock_id: restockHead.id, item_id: ri.id, quantity: ri.quantity, unit_cost: ri.unit_cost }));
-    await supabase.from('restock_items').insert(restockItemsPayload);
-    for (const ri of data.items) {
-      const item = items.find(i => i.id === ri.id);
-      if (item) await updateItem(item.id, { quantityInStock: item.quantityInStock + ri.quantity, costPrice: ri.unitCost });
-    }
+
+    if (restockErr) throw restockErr;
+
+    const restockItemsData = data.items.map(ri => ({
+      restock_id: restock.id,
+      item_id: ri.id,
+      quantity: ri.quantity,
+      unit_cost: ri.unitCost
+    }));
+
+    const { error: itemsErr } = await supabase.from('restock_items').insert(restockItemsData);
+    if (itemsErr) throw itemsErr;
+    syncData();
   };
 
   const processAdditiveRestockCSV = async (csvData: any[]) => {
     for (const row of csvData) {
-      const name = row['Item'];
-      const catName = row['Category'];
-      const sellPrice = Number(row['Selling Price (₦)']);
-      const costPrice = Number(row['Cost Price (₦)']);
-      const qtyInCSV = Number(row['Quantity']);
-      
-      if (!name || isNaN(qtyInCSV) || qtyInCSV <= 0) continue;
-      
-      const existingItem = items.find(i => i.name.toLowerCase().trim() === name.toLowerCase().trim());
-      
-      if (existingItem) {
-        await updateItem(existingItem.id, { 
-          quantityInStock: existingItem.quantityInStock + qtyInCSV, 
-          costPrice: costPrice || existingItem.costPrice, 
-          sellingPrice: sellPrice || existingItem.sellingPrice 
-        });
-      } else {
-        const catId = await addCategory(catName || 'General');
-        await addItem({ 
-          name: name.trim(), 
-          categoryId: catId, 
-          unit: 'pcs', 
-          costPrice: costPrice || 0, 
-          sellingPrice: sellPrice || 0, 
-          quantityInStock: qtyInCSV, 
-          reorderLevel: 5, 
-          allowFractional: false 
+      const item = items.find(i => i.name.toLowerCase() === row.Item?.toLowerCase());
+      if (item && row['Quantity Bought']) {
+        await addRestock({
+          supplierName: 'Bulk Upload',
+          items: [{ id: item.id, quantity: Number(row['Quantity Bought']), unitCost: item.costPrice }]
         });
       }
     }
   };
 
-  const addChatMessage = (message: string, response: string) => {
-    setChatMessage(prev => [...prev, { id: crypto.randomUUID(), userId: currentUser?.id || 'guest', message, response, createdAt: new Date().toISOString() }]);
-  };
-
   return (
     <ShopContext.Provider value={{
-      currentUser, users, shopName, items, categories, sales, saleItems, inventoryLogs, chatHistory,
-      posFloats, posTransactions, posTransfers, posChargeTiers, restocks, restockItems, isLoading, error,
-      digitalBalance, clearError, triggerAlert, login, register, logout, changePassword, addUser, syncUsers, updateUserAccount, deleteUserAccount, 
-      addItem, updateItem, deleteItem, clearInventory, addSale, returnSale,
-      startPOSFloat, addPOSTransaction, addPOSTransfer, addCategory, addChatMessage,
-      addItems, bulkUpdateItems, resetPOSTiersToDefault, clearPOSTiers, addPOSChargeTier,
-      updatePOSChargeTier, deletePOSChargeTier, deletePOSTransaction, addRestock, processAdditiveRestockCSV
+      currentUser, users, shopName, items, categories, sales, saleItems,
+      inventoryLogs, chatHistory, posFloats, posTransactions, posTransfers,
+      posChargeTiers, restocks, restockItems, isLoading, error, digitalBalance,
+      clearError, triggerAlert, login, register, logout, changePassword,
+      addUser, syncUsers, updateUserAccount, deleteUserAccount, addItem,
+      addSale, startPOSFloat, addPOSTransaction, addPOSTransfer, addCategory,
+      addChatMessage, deleteItem, clearInventory, updateItem, deletePOSTransaction,
+      returnSale, addItems, bulkUpdateItems, resetPOSTiersToDefault, clearPOSTiers,
+      addPOSChargeTier, updatePOSChargeTier, deletePOSChargeTier, addRestock,
+      processAdditiveRestockCSV
     }}>
       {children}
     </ShopContext.Provider>
@@ -736,6 +590,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useShop = () => {
   const context = useContext(ShopContext);
-  if (!context) throw new Error('useShop must be used within a ShopProvider');
+  if (context === undefined) {
+    throw new Error('useShop must be used within a ShopProvider');
+  }
   return context;
 };

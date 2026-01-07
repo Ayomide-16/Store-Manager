@@ -36,7 +36,7 @@ const SalesCalculator: React.FC = () => {
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
         if (existing.quantity >= item.quantityInStock) return prev;
-        return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return prev.map(i => i.id === item.id ? { ...i, quantity: Number((i.quantity + 1).toFixed(4)) } : i);
       }
       return [...prev, { id: item.id, quantity: 1 }];
     });
@@ -49,7 +49,7 @@ const SalesCalculator: React.FC = () => {
       if (i.id === id) {
         const step = item.allowFractional ? 0.25 : 1;
         const newQty = Math.max(step, Math.min(item.quantityInStock, i.quantity + (delta * step)));
-        return { ...i, quantity: newQty };
+        return { ...i, quantity: Number(newQty.toFixed(4)) };
       }
       return i;
     }));
@@ -59,8 +59,8 @@ const SalesCalculator: React.FC = () => {
     const item = items.find(i => i.id === id)!;
     setCart(prev => prev.map(i => {
       if (i.id === id) {
-        const finalQty = Math.min(item.quantityInStock, qty);
-        return { ...i, quantity: finalQty };
+        const finalQty = Math.max(0, Math.min(item.quantityInStock, qty));
+        return { ...i, quantity: Number(finalQty.toFixed(4)) };
       }
       return i;
     }));
@@ -70,14 +70,18 @@ const SalesCalculator: React.FC = () => {
     setCart(prev => prev.filter(i => i.id !== id));
   };
 
-  const handleCompleteSale = () => {
+  const handleCompleteSale = async () => {
     if (cart.length === 0 || !paymentMethod) return;
-    addSale({ items: cart, paymentMethod, additionalCharges });
-    setCart([]);
-    setPaymentMethod(null);
-    setAdditionalCharges(0);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+    try {
+      await addSale({ items: cart, paymentMethod, additionalCharges });
+      setCart([]);
+      setPaymentMethod(null);
+      setAdditionalCharges(0);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (err: any) {
+      alert("Checkout failed: " + (err.message || "Unknown error"));
+    }
   };
 
   return (
@@ -145,7 +149,7 @@ const SalesCalculator: React.FC = () => {
                     <input 
                       type="number" 
                       step={item.allowFractional ? "0.25" : "1"}
-                      className="w-16 text-center font-black text-slate-900 bg-white border border-slate-200 rounded-lg py-1 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-20 text-center font-black text-slate-900 bg-white border border-slate-200 rounded-lg py-1 outline-none focus:ring-2 focus:ring-indigo-500"
                       value={item.cartQuantity || ''}
                       onFocus={e => e.target.select()}
                       onChange={(e) => setFixedQuantity(item.id, Number(e.target.value))}

@@ -44,13 +44,6 @@ const Inventory: React.FC = () => {
     allowFractional: false
   });
 
-  const parseNaira = (val: any): number => {
-    if (val === undefined || val === null || val === '') return 0;
-    const cleaned = String(val).replace(/[^\d.]/g, '');
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? 0 : num;
-  };
-
   const filteredItems = useMemo(() => {
     const tokens = searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
     return items.filter(item => {
@@ -147,9 +140,7 @@ const Inventory: React.FC = () => {
       
       setIsAddModalOpen(false);
     } catch (err: any) {
-      console.error("Save failure:", err);
-      // Fixed: prevent [object Object] display
-      alert("Error saving item: " + (err.message || (typeof err === 'string' ? err : JSON.stringify(err))));
+      alert("Error saving item: " + (err.message || JSON.stringify(err)));
     } finally {
       setIsImporting(false);
     }
