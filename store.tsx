@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { 
-  User, UserRole, Item, Category, Sale, SaleItem, 
+import {
+  User, UserRole, Item, Category, Sale, SaleItem,
   ChatMessage, SaleStatus, PaymentMethod, InventoryLog,
   POSWithdrawalFloat, POSWithdrawalTransaction, POSCashTransfer, POSChargeTier,
   Restock, RestockItem
@@ -39,7 +39,7 @@ interface ShopContextType {
   digitalBalance: number;
   clearError: () => void;
   triggerAlert: (title: string, message: any, variant?: 'danger' | 'warning' | 'info') => void;
-  
+
   login: (email: string, password: string) => Promise<void>;
   register: (params: { email: string; password: string; fullName: string; shopName: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -77,7 +77,7 @@ const ShopContext = createContext<ShopContextType | undefined>(undefined);
 const getErrorMessage = (err: any): string => {
   if (!err) return "Unknown error";
   if (typeof err === 'string') return err;
-  
+
   let msg = "An unexpected error occurred.";
 
   // Postgrest / Supabase Error Object
@@ -137,7 +137,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const digitalBalance = (
     sales.filter(s => s.status === SaleStatus.COMPLETED && s.paymentMethod !== PaymentMethod.CASH)
-         .reduce((acc, s) => acc + (Number(s.totalAmount) || 0), 0) +
+      .reduce((acc, s) => acc + (Number(s.totalAmount) || 0), 0) +
     posTransactions.reduce((acc, t) => acc + (Number(t.totalPaid) || 0), 0)
   );
 
@@ -152,7 +152,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const { data, error: adminError } = await supabaseAdmin.auth.admin.listUsers();
       if (adminError) throw adminError;
-      
+
       if (data?.users) {
         setUsers(data.users.map(u => ({
           id: u.id,
@@ -335,10 +335,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addSale = async (saleData: { items: any[], paymentMethod: PaymentMethod, additionalCharges: number }) => {
     if (!currentUser) return;
     const saleNumber = generateSaleNumber();
-    
+
     let subtotal = 0;
     let totalCost = 0;
-    
+
     const itemsToInsert = saleData.items.map(cartItem => {
       const item = items.find(i => i.id === cartItem.id)!;
       subtotal += item.sellingPrice * cartItem.quantity;
@@ -377,6 +377,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (itemsErr) throw itemsErr;
 
+    // Deduct sold quantities from inventory
+    for (const cartItem of saleData.items) {
+      const item = items.find(i => i.id === cartItem.id)!;
+      const newStock = item.quantityInStock - cartItem.quantity;
+      await supabase
+        .from('items')
+        .update({ quantity_in_stock: newStock })
+        .eq('id', cartItem.id);
+    }
+
     // Simplified sync
     syncData();
   };
@@ -401,7 +411,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser || !activeFloat) throw new Error("No active float found");
     const txNum = `POS-${Math.random().toString(36).substring(7).toUpperCase()}`;
     const totalPaid = data.withdrawalAmount + data.serviceCharge;
-    
+
     const { error } = await supabase.from('pos_transactions').insert({
       float_id: activeFloat.id,
       transaction_number: txNum,
@@ -487,9 +497,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const returnSale = async (id: string, reason: string) => {
-    const { error } = await supabase.from('sales').update({ 
+    const { error } = await supabase.from('sales').update({
       status: SaleStatus.RETURNED,
-      return_reason: reason 
+      return_reason: reason
     }).eq('id', id);
     if (error) throw error;
     syncData();
