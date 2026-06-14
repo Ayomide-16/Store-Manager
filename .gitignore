@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Mobile app - separate repository
+shop-manager-mobile/
+
+# Env files
+.env
+.env.*
+!.env.example
