@@ -798,7 +798,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       syncData();
       return;
     }
->>>>>>> e56791b864f29e6d423026ceaa462a0b2a0233a1
 
     const itemsToInsert = saleData.items.map(cartItem => {
       const item = items.find(i => i.id === cartItem.id)!;
