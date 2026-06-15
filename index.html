@@ -9,11 +9,94 @@
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛍️</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            background: '#F4F6F8',
+            surface: '#FFFFFF',
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
+    :root {
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: #F4F6F8; 
+      color: #1E293B; 
+      -webkit-font-smoothing: antialiased; 
+      -moz-osx-font-smoothing: grayscale; 
+    }
+    h1, h2, h3, h4, h5, h6 { 
+      font-weight: 600; 
+      letter-spacing: -0.025em; 
+      color: #0F172A;
+    }
+    
+    /* Elegant modern rounded scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 99px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.45);
     }
 
+    input, select, textarea {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    
+    /* Animation classes */
+    .stagger-1 { animation: slideUp 400ms var(--ease-out) forwards; animation-delay: 50ms; opacity: 0; }
+    .stagger-2 { animation: slideUp 400ms var(--ease-out) forwards; animation-delay: 100ms; opacity: 0; }
+    .stagger-3 { animation: slideUp 400ms var(--ease-out) forwards; animation-delay: 150ms; opacity: 0; }
+    .stagger-4 { animation: slideUp 400ms var(--ease-out) forwards; animation-delay: 200ms; opacity: 0; }
+    
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .btn-press {
+      transition: transform 160ms var(--ease-out), filter 160ms var(--ease-out);
+    }
+    .btn-press:active {
+      transform: scale(0.96);
+      filter: brightness(0.95);
+    }
+    
+    .brutalist-card {
+      background: white;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 0 #F1F5F9;
+      border-radius: 16px;
+      transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+    }
+    .brutalist-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 0 #E2E8F0;
+    }
+    .brutalist-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 0 #E2E8F0;
+    }
     input::-webkit-outer-spin-button,
     input::-webkit-inner-spin-button {
       -webkit-appearance: none;
@@ -148,6 +231,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
 
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden">

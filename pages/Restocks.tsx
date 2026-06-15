@@ -98,57 +98,57 @@ const Restocks: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Restocks</h1>
-          <p className="text-slate-500 font-medium">Record new inventory purchases for {shopName}.</p>
+          <h1 className="text-4xl font-semibold tracking-tight font-medium text-slate-900 tracking-tight ">Restocks</h1>
+          <p className="text-slate-500 font-medium text-sm  tracking-normal mt-2">Record new inventory purchases for {shopName}.</p>
         </div>
-        <div className="flex flex-wrap gap-2 no-print items-center">
+        <div className="flex flex-wrap gap-4 no-print items-center">
           <FileActionMenu label="Trip Sheet" type="export" onAction={handleDownloadSheet} showPdf />
           <button 
             onClick={() => setIsManualModalOpen(true)}
-            className="px-6 py-2 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black shadow-xl transition-all active:scale-95 flex items-center gap-2"
+            className="px-6 py-4 bg-slate-900 border border-slate-200 rounded-2xl text-white font-medium font-bold text-xs  tracking-normal hover:-translate-y-0.5 hover:shadow-sm shadow-[0_2px_10px_rgb(0,0,0,0.02)] transition-all flex items-center gap-3"
           >
-            <Plus className="w-4 h-4" /> Manual Entry
+            <Plus className="w-5 h-5" /> Manual Entry
           </button>
           <FileActionMenu 
             label="Upload Restock" 
             type="import" 
             onAction={() => setIsBulkModalOpen(true)}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 transition-all flex items-center gap-2"
+            className="px-6 py-4 bg-blue-600 border border-slate-200 rounded-2xl text-white font-medium font-bold text-xs  tracking-normal hover:-translate-y-0.5 hover:shadow-sm shadow-[0_2px_10px_rgb(0,0,0,0.02)] transition-all flex items-center gap-3"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden no-print">
-        <div className="p-8 border-b border-slate-50 bg-slate-50/50">
-           <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-             <History className="w-6 h-6 text-indigo-500" />
+      <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden no-print">
+        <div className="p-8 border-b border-slate-100 bg-white/60 backdrop-blur-3xl flex justify-between items-center">
+           <h3 className="text-2xl font-semibold tracking-tight font-medium text-slate-900 tracking-tight flex items-center gap-4 ">
+             <History className="w-8 h-8 text-blue-500" />
              Recent Purchase Records
            </h3>
         </div>
-        <div className="divide-y divide-slate-50">
+        <div className="divide-y-4 divide-ink">
           {restocks.map(restock => (
-            <div key={restock.id} className="p-8 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+            <div key={restock.id} className="p-8 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-6">
-                <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
-                  <Truck className="w-7 h-7" />
+                <div className="w-16 h-16 bg-blue-600 border border-slate-200 rounded-2xl text-white flex items-center justify-center shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+                  <Truck className="w-8 h-8" />
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 text-lg leading-tight">{restock.supplierName}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5" /> {formatDate(restock.restockDate)}
+                  <p className="font-medium font-bold text-slate-900 text-xl ">{restock.supplierName}</p>
+                  <p className="text-[10px] font-medium font-bold text-slate-500  tracking-normal mt-2 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> {formatDate(restock.restockDate)}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xl font-black text-indigo-600">{formatCurrency(restock.totalAmount)}</p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Total Trip Value</p>
+                <p className="text-3xl font-semibold tracking-tight font-medium text-slate-900">{formatCurrency(restock.totalAmount)}</p>
+                <p className="text-[10px] font-medium font-bold text-slate-400  tracking-normal mt-2">Total Trip Value</p>
               </div>
             </div>
           ))}
           {restocks.length === 0 && (
-            <div className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-widest italic opacity-50">
+            <div className="p-24 text-center text-slate-300 font-medium font-bold  text-xs tracking-normal">
               No recent restock records.
             </div>
           )}
@@ -159,30 +159,30 @@ const Restocks: React.FC = () => {
       {isManualModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isProcessing && setIsManualModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">Manual Restock</h3>
-              <button disabled={isProcessing} onClick={() => setIsManualModalOpen(false)}><X className="w-6 h-6" /></button>
+          <div className="relative bg-white w-full max-w-xl border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in zoom-in duration-200">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white/60 backdrop-blur-3xl">
+              <h3 className="text-2xl font-semibold tracking-tight font-medium text-slate-900 tracking-tight ">Manual Restock</h3>
+              <button disabled={isProcessing} className="hover:rotate-90 transition-transform text-slate-900" onClick={() => setIsManualModalOpen(false)}><X className="w-8 h-8" /></button>
             </div>
-            <form onSubmit={handleManualSubmit} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Supplier / Trip Note</label>
-                <input className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" value={manualEntry.supplierName} onChange={e => setManualEntry({...manualEntry, supplierName: e.target.value})} />
+            <form onSubmit={handleManualSubmit} className="p-10 space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-medium font-bold text-slate-500  tracking-normal">Supplier / Trip Note</label>
+                <input className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:bg-slate-50 font-medium font-bold text-slate-900" value={manualEntry.supplierName} onChange={e => setManualEntry({...manualEntry, supplierName: e.target.value})} />
               </div>
 
-              <div className="space-y-2 relative">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Search Product</label>
+              <div className="space-y-3 relative">
+                <label className="text-[10px] font-medium font-bold text-slate-500  tracking-normal">Search Product</label>
                 <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input 
-                    className="w-full pl-11 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" 
+                    className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:bg-slate-50 font-medium font-bold text-slate-900" 
                     placeholder="Type name or SKU..."
                     value={itemSearch}
                     onChange={e => setItemSearch(e.target.value)}
                   />
                 </div>
                 {filteredItemsForSelection.length > 0 && !manualEntry.itemId && (
-                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden">
+                  <div className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_2px_10px_rgb(0,0,0,0.02)] z-20 overflow-hidden">
                     {filteredItemsForSelection.map(item => (
                       <button 
                         key={item.id} type="button" 
@@ -190,38 +190,38 @@ const Restocks: React.FC = () => {
                           setManualEntry({...manualEntry, itemId: item.id, unitCost: item.costPrice});
                           setItemSearch(item.name);
                         }}
-                        className="w-full p-4 text-left hover:bg-slate-50 border-b border-slate-50 last:border-0"
+                        className="w-full p-5 text-left hover:bg-slate-50 border-b-2 border-slate-200 last:border-0"
                       >
-                        <p className="font-bold text-slate-900">{item.name}</p>
-                        <p className="text-[10px] text-slate-400 uppercase font-black">Current Stock: {item.quantityInStock} {item.unit}</p>
+                        <p className="font-medium font-bold text-slate-900 ">{item.name}</p>
+                        <p className="text-[10px] text-slate-500  font-medium font-bold mt-2">Current Stock: {item.quantityInStock} {item.unit}</p>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantity Added</label>
-                  <input type="number" required className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" value={manualEntry.quantity || ''} onFocus={e => e.target.select()} onChange={e => setManualEntry({...manualEntry, quantity: Number(e.target.value)})} />
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-medium font-bold text-slate-500  tracking-normal">Quantity Added</label>
+                  <input type="number" required className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:bg-slate-50 font-medium font-bold text-slate-900 text-center text-xl" value={manualEntry.quantity || ''} onFocus={e => e.target.select()} onChange={e => setManualEntry({...manualEntry, quantity: Number(e.target.value)})} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">New Unit Cost (₦)</label>
-                  <input type="number" required className="w-full px-5 py-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700" value={manualEntry.unitCost || ''} onFocus={e => e.target.select()} onChange={e => setManualEntry({...manualEntry, unitCost: Number(e.target.value)})} />
+                <div className="space-y-3">
+                  <label className="text-[10px] font-medium font-bold text-slate-500  tracking-normal">New Unit Cost (₦)</label>
+                  <input type="number" required className="w-full px-6 py-4 bg-white/60 backdrop-blur-3xl border border-slate-200 rounded-2xl outline-none focus:bg-white font-medium font-bold text-blue-500 text-center text-xl" value={manualEntry.unitCost || ''} onFocus={e => e.target.select()} onChange={e => setManualEntry({...manualEntry, unitCost: Number(e.target.value)})} />
                 </div>
               </div>
 
-              <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 flex justify-between items-center">
+              <div className="p-8 bg-white border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex justify-between items-center">
                 <div>
-                  <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Total Cost</p>
-                  <p className="text-2xl font-black text-emerald-600">{formatCurrency(manualEntry.quantity * manualEntry.unitCost)}</p>
+                  <p className="text-[10px] font-medium font-bold text-slate-500  tracking-normal mb-2">Total Cost</p>
+                  <p className="text-3xl font-semibold tracking-tight font-medium text-slate-900">{formatCurrency(manualEntry.quantity * manualEntry.unitCost)}</p>
                 </div>
                 <button 
                   type="submit" 
                   disabled={isProcessing || !manualEntry.itemId}
-                  className="px-8 py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-emerald-700 disabled:opacity-50 active:scale-95 transition-all"
+                  className="px-8 py-5 bg-[#10b981] border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 text-slate-900 font-medium font-bold  text-xs tracking-normal shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgb(0,0,0,0.02)] disabled:opacity-50 disabled:bg-slate-200 transition-all"
                 >
-                  {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm Restock'}
+                  {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Restock'}
                 </button>
               </div>
             </form>
@@ -233,28 +233,28 @@ const Restocks: React.FC = () => {
       {isBulkModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => !isProcessing && setIsBulkModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200 p-8">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-black text-slate-900">Bulk Restock Upload</h3>
-              <button onClick={() => setIsBulkModalOpen(false)}><X className="w-6 h-6" /></button>
+          <div className="relative bg-white w-full max-w-2xl border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in zoom-in duration-200 p-12">
+            <div className="flex justify-between items-center mb-10 border-b border-slate-100 pb-6">
+              <h3 className="text-3xl font-semibold tracking-tight font-medium text-slate-900 ">Bulk Restock Upload</h3>
+              <button className="hover:rotate-90 transition-transform text-slate-900" onClick={() => setIsBulkModalOpen(false)}><X className="w-8 h-8" /></button>
             </div>
             {!isProcessing && (
-              <div className="border-4 border-dashed border-slate-100 rounded-[2.5rem] p-12 text-center cursor-pointer hover:bg-indigo-50 transition-all" onClick={() => fileInputRef.current?.click()}>
+              <div className="border-4 border-dashed border-slate-200 p-16 text-center cursor-pointer hover:bg-white/60 backdrop-blur-3xl transition-all bg-white" onClick={() => fileInputRef.current?.click()}>
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv,.xlsx" className="hidden" />
-                <Upload className="w-12 h-12 text-indigo-400 mx-auto mb-4" />
-                <p className="font-bold text-slate-700">Select Trip CSV/Excel</p>
+                <Upload className="w-16 h-16 text-blue-500 mx-auto mb-6" />
+                <p className="font-medium font-bold text-slate-900  tracking-normal">Select Trip CSV/Excel</p>
               </div>
             )}
             {bulkPreview.length > 0 && !isProcessing && (
-              <div className="mt-8 space-y-4">
-                <p className="font-black text-[10px] text-slate-400 uppercase tracking-widest">{bulkPreview.length} Items Detected</p>
-                <button onClick={handleCommitBulkRestock} className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl">Process Addition</button>
+              <div className="mt-10 space-y-6">
+                <p className="font-medium font-bold text-sm text-slate-500  tracking-normal">{bulkPreview.length} Items Detected</p>
+                <button onClick={handleCommitBulkRestock} className="w-full py-6 bg-blue-600 border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 text-white font-medium font-bold text-sm  tracking-normal shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:-translate-y-0.5 hover:shadow-sm transition-all">Process Addition</button>
               </div>
             )}
             {isProcessing && (
-              <div className="py-20 text-center space-y-4">
-                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto" />
-                <p className="font-bold">Syncing stock levels...</p>
+              <div className="py-24 text-center space-y-6">
+                <Loader2 className="w-16 h-16 text-blue-500 animate-spin mx-auto" />
+                <p className="font-medium font-bold text-slate-900  tracking-normal">Syncing stock levels...</p>
               </div>
             )}
           </div>

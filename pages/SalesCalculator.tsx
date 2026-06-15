@@ -85,39 +85,39 @@ const SalesCalculator: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
       <div className="lg:col-span-7 flex flex-col gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+        <div className="bg-white/60 backdrop-blur-3xl p-6 border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_2px_10px_rgb(0,0,0,0.02)] space-y-4">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-900 w-6 h-6" />
             <input 
               type="text"
               placeholder="Search products..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all font-bold"
+              className="w-full pl-14 pr-5 py-4 bg-white border border-slate-200 rounded-2xl font-medium font-bold text-slate-900 focus:ring-0 focus:bg-slate-50 outline-none transition-all text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {searchTerm && (
-            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+            <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
               {filteredItems.map(item => (
                 <button
                   key={item.id}
                   onClick={() => addToCart(item)}
                   disabled={item.quantityInStock <= 0}
-                  className="w-full text-left p-3 rounded-xl border border-slate-100 hover:bg-slate-50 flex items-center justify-between group transition-colors disabled:opacity-50"
+                  className="w-full text-left p-4 border border-slate-200 rounded-2xl bg-white flex items-center justify-between group transition-all hover:-translate-y-px hover:shadow-[0_2px_10px_rgb(0,0,0,0.02)] disabled:opacity-50 disabled:hover:shadow-none disabled:hover:translate-y-0"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <div>
-                      <p className="font-bold text-slate-900 leading-none">{item.name}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{item.sku} • Stock: {item.quantityInStock}</p>
+                      <p className="font-medium font-bold text-slate-900 text-base  leading-none">{item.name}</p>
+                      <p className="text-[10px] text-slate-500 font-medium tracking-normal mt-1.5">{item.sku} • Stock: {item.quantityInStock}</p>
                     </div>
-                    {item.allowFractional && <Scissors className="w-3.5 h-3.5 text-indigo-400" />}
+                    {item.allowFractional && <Scissors className="w-4 h-4 text-blue-500" />}
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-indigo-600">{formatCurrency(item.sellingPrice)}</p>
-                    <Plus className="w-4 h-4 ml-auto mt-1 text-indigo-400 group-hover:text-indigo-600" />
+                  <div className="text-right flex flex-col items-end">
+                    <p className="font-sans font-bold text-lg text-slate-900">{formatCurrency(item.sellingPrice)}</p>
+                    <Plus className="w-5 h-5 mt-1 text-slate-900 group-hover:text-blue-500" />
                   </div>
                 </button>
               ))}
@@ -125,99 +125,101 @@ const SalesCalculator: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2 uppercase text-xs tracking-widest">
-              <ShoppingCart className="w-5 h-5 text-indigo-600" />
-              Cart ({cart.length} items)
+        <div className="bg-white/60 backdrop-blur-3xl border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex-1 flex flex-col overflow-hidden">
+          <div className="p-6 border-b border-slate-100 bg-white flex items-center justify-between">
+            <h3 className="font-semibold tracking-tight font-medium text-xl text-slate-900 tracking-tight flex items-center gap-3">
+              <ShoppingCart className="w-6 h-6 text-blue-500" />
+              Cart ({cart.length})
             </h3>
-            <button onClick={() => setCart([])} className="text-xs font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 px-3 py-1 rounded-lg transition-colors">CLEAR</button>
+            <button onClick={() => setCart([])} className="text-xs font-medium font-bold text-white bg-red-600 border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)]  tracking-normal px-4 py-2 hover:-translate-y-0.5 hover:shadow-sm transition-all">CLEAR</button>
           </div>
-          <div className="flex-1 overflow-y-auto min-h-[300px] custom-scrollbar">
+          <div className="flex-1 overflow-y-auto min-h-[300px] bg-slate-50 custom-scrollbar">
             {cartDetails.map(item => (
-              <div key={item.id} className="p-4 border-b border-slate-100 flex flex-col gap-3 hover:bg-slate-50/50 transition-colors">
+              <div key={item.id} className="p-6 border-b-2 border-slate-200 flex flex-col gap-4 bg-white hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-slate-900 leading-tight">{item.name}</p>
-                      {item.allowFractional && <Scissors className="w-3.5 h-3.5 text-indigo-400" />}
+                    <div className="flex items-center gap-3">
+                      <p className="font-medium font-bold  text-slate-900">{item.name}</p>
+                      {item.allowFractional && <Scissors className="w-4 h-4 text-blue-500" />}
                     </div>
-                    <p className="text-xs text-slate-500 font-medium">{formatCurrency(item.sellingPrice)} / {item.unit}</p>
+                    <p className="text-xs text-slate-500 font-sans font-medium mt-1">{formatCurrency(item.sellingPrice)} / {item.unit}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"><Minus className="w-4 h-4" /></button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => updateQuantity(item.id, -1)} className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-2xl bg-white hover:bg-slate-100 text-slate-900"><Minus className="w-5 h-5" /></button>
                     <input 
                       type="number" 
                       step={item.allowFractional ? "0.25" : "1"}
-                      className="w-20 text-center font-black text-slate-900 bg-white border border-slate-200 rounded-lg py-1 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-20 text-center font-medium font-bold text-slate-900 bg-white border border-slate-200 rounded-2xl py-2 focus:ring-0 outline-none"
                       value={item.cartQuantity || ''}
                       onFocus={e => e.target.select()}
                       onChange={(e) => setFixedQuantity(item.id, Number(e.target.value))}
                     />
-                    <button onClick={() => updateQuantity(item.id, 1)} disabled={item.cartQuantity >= item.quantityInStock} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30"><Plus className="w-4 h-4" /></button>
+                    <button onClick={() => updateQuantity(item.id, 1)} disabled={item.cartQuantity >= item.quantityInStock} className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 disabled:opacity-30"><Plus className="w-5 h-5" /></button>
                   </div>
-                  <div className="w-24 text-right font-black text-slate-900">{formatCurrency(item.sellingPrice * item.cartQuantity)}</div>
-                  <button onClick={() => removeFromCart(item.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                  <div className="w-28 text-right font-sans font-bold text-xl text-slate-900">{formatCurrency(item.sellingPrice * item.cartQuantity)}</div>
+                  <button onClick={() => removeFromCart(item.id)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 border-2 border-transparent hover:border-red-200 transition-all"><Trash2 className="w-5 h-5" /></button>
                 </div>
                 {item.allowFractional && (
-                  <div className="flex gap-2 pl-2">
+                  <div className="flex gap-3 pl-2 mt-2">
                     {[{ label: '1/4', val: 0.25 }, { label: '1/2', val: 0.5 }, { label: '3/4', val: 0.75 }, { label: 'Full', val: 1.0 }].map(fraction => (
-                      <button key={fraction.label} onClick={() => setFixedQuantity(item.id, fraction.val)} className={`px-3 py-1 rounded-full text-[9px] font-black uppercase transition-all ${item.cartQuantity === fraction.val ? 'bg-indigo-600 text-white shadow-md' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}>{fraction.label}</button>
+                      <button key={fraction.label} onClick={() => setFixedQuantity(item.id, fraction.val)} className={`px-4 py-2 border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:-translate-y-0.5 hover:shadow-sm text-[10px] font-medium font-bold  transition-all ${item.cartQuantity === fraction.val ? 'bg-blue-600 text-white' : 'bg-white text-slate-900 hover:bg-slate-50'}`}>{fraction.label}</button>
                     ))}
                   </div>
                 )}
               </div>
             ))}
-            {cart.length === 0 && <div className="h-full flex flex-col items-center justify-center p-12 text-slate-400 opacity-40"><ShoppingCart className="w-16 h-16 mb-4" /><p className="font-bold uppercase text-xs tracking-widest">Cart is empty</p></div>}
+            {cart.length === 0 && <div className="h-full flex flex-col items-center justify-center p-16 text-slate-300"><ShoppingCart className="w-20 h-20 mb-6" /><p className="font-medium font-bold  tracking-normal">Cart is empty</p></div>}
           </div>
-          <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-            <span className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Cart Subtotal</span>
-            <span className="text-xl font-black text-slate-900">{formatCurrency(subtotal)}</span>
+          <div className="p-6 bg-white border-t border-slate-100 flex justify-between items-center">
+            <span className="text-slate-500 font-medium font-bold  text-[10px] tracking-normal">Cart Subtotal</span>
+            <span className="text-3xl font-semibold tracking-tight font-medium text-slate-900">{formatCurrency(subtotal)}</span>
           </div>
         </div>
       </div>
 
       <div className="lg:col-span-5 flex flex-col gap-6">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8 sticky top-24">
-          <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight flex items-center gap-3"><Wallet className="w-6 h-6 text-indigo-600" /> Checkout</h3>
+        <div className="bg-white/60 backdrop-blur-3xl p-8 border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-8 sticky top-28">
+          <h3 className="font-semibold tracking-tight font-medium text-3xl text-slate-900 tracking-tight flex items-center gap-4"><Wallet className="w-8 h-8 text-blue-500" /> Checkout</h3>
           <div className="space-y-6">
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Type</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="block text-[10px] font-medium font-bold text-slate-500  tracking-normal">Payment Type</label>
+              <div className="grid grid-cols-3 gap-3">
                 {Object.values(PaymentMethod).map(method => (
-                  <button key={method} onClick={() => setPaymentMethod(method)} className={`px-3 py-4 rounded-2xl border-2 text-[10px] font-black uppercase transition-all flex flex-col items-center gap-2 ${paymentMethod === method ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-50 bg-slate-50 text-slate-400 hover:border-slate-200'}`}>
-                    {method === PaymentMethod.CASH && <Wallet className="w-5 h-5" />}
-                    {method === PaymentMethod.BANK_TRANSFER && <CheckCircle className="w-5 h-5" />}
-                    {method === PaymentMethod.CARD && <CreditCard className="w-5 h-5" />}
+                  <button key={method} onClick={() => setPaymentMethod(method)} className={`py-5 border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] text-[10px] font-medium font-bold  transition-all flex flex-col items-center gap-3 ${paymentMethod === method ? 'bg-blue-600 text-white hover:-translate-y-0.5 hover:shadow-sm' : 'bg-white text-slate-900 hover:-translate-y-0.5 hover:shadow-sm'}`}>
+                    {method === PaymentMethod.CASH && <Wallet className="w-6 h-6" />}
+                    {method === PaymentMethod.BANK_TRANSFER && <CheckCircle className="w-6 h-6" />}
+                    {method === PaymentMethod.CARD && <CreditCard className="w-6 h-6" />}
                     {method.replace('_', ' ')}
                   </button>
                 ))}
               </div>
             </div>
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Extra Fee (POS charge, etc.)</label>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setAdditionalCharges(prev => Math.max(0, prev - 50))} className="p-3 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"><Minus className="w-5 h-5" /></button>
+              <label className="block text-[10px] font-medium font-bold text-slate-500  tracking-normal">Extra Fee (POS charge)</label>
+              <div className="flex items-center gap-3 bg-white p-2 border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+                <button onClick={() => setAdditionalCharges(prev => Math.max(0, prev - 50))} className="w-12 h-12 flex items-center justify-center border border-slate-200 rounded-2xl bg-white/60 backdrop-blur-3xl hover:bg-slate-100 transition-colors"><Minus className="w-6 h-6" /></button>
                 <input 
                   type="number"
-                  className="flex-1 px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center font-black text-xl text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 px-4 py-4 bg-transparent text-center font-semibold tracking-tight font-medium text-2xl text-slate-900 outline-none"
                   value={additionalCharges || ''}
                   placeholder="0"
                   onFocus={e => e.target.select()}
                   onChange={(e) => setAdditionalCharges(Number(e.target.value))}
                 />
-                <button onClick={() => setAdditionalCharges(prev => prev + 50)} className="p-3 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"><Plus className="w-5 h-5" /></button>
+                <button onClick={() => setAdditionalCharges(prev => prev + 50)} className="w-12 h-12 flex items-center justify-center border border-slate-200 rounded-2xl bg-white/60 backdrop-blur-3xl hover:bg-slate-100 transition-colors"><Plus className="w-6 h-6" /></button>
               </div>
             </div>
           </div>
-          <div className="bg-slate-900 p-8 rounded-[2rem] text-white shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full translate-x-12 -translate-y-12"></div>
-            <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-1">Total to Pay</p>
-            <h4 className="text-5xl font-black tracking-tighter">{formatCurrency(total)}</h4>
+          <div className="bg-slate-900 p-10 text-white border-4 border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative">
+            <p className="text-white/50 text-[10px] font-medium font-bold  tracking-normal mb-2">Total to Pay</p>
+            <h4 className="text-5xl font-semibold tracking-tight font-medium tracking-tight text-blue-500Light">{formatCurrency(total)}</h4>
           </div>
-          <button onClick={handleCompleteSale} disabled={cart.length === 0 || !paymentMethod} className="w-full py-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:bg-slate-300">Complete Order</button>
+          <button onClick={handleCompleteSale} disabled={cart.length === 0 || !paymentMethod} className="w-full py-6 bg-blue-600 border border-slate-200 rounded-2xl text-white font-medium font-bold text-xs  tracking-[0.2em] shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgb(0,0,0,0.02)] transition-all disabled:opacity-50 flex items-center justify-center gap-3">
+            <CheckCircle className="w-5 h-5" />
+            Complete Order
+          </button>
         </div>
-        {showSuccess && <div className="fixed bottom-8 right-8 bg-emerald-600 text-white p-6 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-right-4 flex items-center gap-4 z-50"><CheckCircle className="w-8 h-8" /><div><p className="font-black text-sm uppercase tracking-widest leading-none">Order Logged</p><p className="text-xs text-white/80 font-medium mt-1">Stock levels updated in real-time.</p></div></div>}
+        {showSuccess && <div className="fixed bottom-10 right-10 bg-[#10b981] text-slate-900 p-6 border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-bottom-4 flex items-center gap-5 z-50"><CheckCircle className="w-8 h-8" /><div><p className="font-medium font-bold text-sm  tracking-normal leading-none mb-1">Order Logged</p><p className="text-xs font-sans font-medium">Stock levels updated.</p></div></div>}
       </div>
     </div>
   );

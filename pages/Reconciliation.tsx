@@ -47,113 +47,113 @@ const Reconciliation: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Closing Accounts</h1>
-          <p className="text-slate-500 font-medium">Synchronize physical cash and bank statements with system records.</p>
+          <h1 className="text-4xl font-semibold tracking-tight font-medium text-slate-900 tracking-tight ">Closing Accounts</h1>
+          <p className="text-slate-500 font-medium text-sm  tracking-normal mt-2">Synchronize physical cash and bank statements with system records.</p>
         </div>
-        <div className="flex gap-2 no-print">
-          <button onClick={() => window.print()} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 shadow-sm flex items-center gap-2"><Printer className="w-4 h-4" /> Export PDF</button>
+        <div className="flex gap-4 no-print">
+          <button onClick={() => window.print()} className="px-6 py-4 bg-white border border-slate-200 rounded-2xl text-slate-900 font-medium font-bold text-xs  tracking-normal shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:-translate-y-0.5 hover:shadow-[0_2px_10px_rgb(0,0,0,0.02)] transition-all flex items-center gap-3"><Printer className="w-5 h-5" /> Export PDF</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6 flex flex-col">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
-              <Wallet className="w-5 h-5" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="bg-white p-8 border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-8 flex flex-col">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-yellow-400 border border-slate-200 rounded-2xl text-slate-900 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex items-center justify-center">
+              <Wallet className="w-6 h-6" />
             </div>
-            <h3 className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Shop Cash Drawer</h3>
+            <h3 className="font-semibold tracking-tight font-medium text-slate-900 text-xl  tracking-tight">Shop Cash</h3>
           </div>
-          <div className="space-y-4 flex-1">
-            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <span>Expected Cash</span>
-              <span className="text-slate-900">{formatCurrency(stats.cashExpected)}</span>
+          <div className="space-y-6 flex-1">
+            <div className="flex flex-col gap-1 border-b-2 border-slate-200 pb-4">
+              <span className="text-[10px] font-medium font-bold text-slate-500  tracking-normal">Expected Cash</span>
+              <span className="text-3xl font-semibold tracking-tight font-medium text-slate-900">{formatCurrency(stats.cashExpected)}</span>
             </div>
             <input 
               type="number" 
               placeholder="Physical Count" 
-              className="w-full px-6 py-4 bg-slate-50 rounded-2xl text-xl font-black outline-none focus:ring-2 focus:ring-indigo-500" 
+              className="w-full px-6 py-5 bg-white/60 backdrop-blur-3xl border border-slate-200 rounded-2xl text-2xl font-semibold tracking-tight font-medium outline-none focus:bg-white transition-all text-center placeholder:text-slate-300" 
               value={actualCash} 
               onFocus={e => e.target.select()}
               onChange={e => setActualCash(e.target.value)} 
             />
             {cashVariance !== null && (
-              <div className={`p-4 rounded-xl flex justify-between items-center animate-in zoom-in duration-300 ${cashVariance === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                <span className="text-[10px] font-black uppercase">Discrepancy</span>
-                <span className="font-black">{cashVariance === 0 ? 'BALANCED' : formatCurrency(cashVariance)}</span>
+              <div className={`p-5 border-2 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex justify-between items-center animate-in zoom-in duration-300 ${cashVariance === 0 ? 'bg-[#10b981] border-slate-200 text-slate-900' : 'bg-red-600 border-slate-200 text-white'}`}>
+                <span className="text-[10px] font-medium font-bold  tracking-normal">Discrepancy</span>
+                <span className="font-semibold tracking-tight font-medium text-xl">{cashVariance === 0 ? 'BALANCED' : formatCurrency(cashVariance)}</span>
               </div>
             )}
-            <div className="bg-slate-50 p-4 rounded-2xl space-y-2 border border-slate-100">
-               <p className="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>Sales Cash (+)</span><span className="text-emerald-600">+{formatCurrency(stats.cashSales)}</span></p>
-               <p className="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>Moved to POS (-)</span><span className="text-rose-600">-{formatCurrency(stats.posTransferOut)}</span></p>
+            <div className="bg-white/60 backdrop-blur-3xl p-5 border border-slate-200 rounded-2xl space-y-3">
+               <p className="flex justify-between items-end text-[10px] font-medium font-bold  tracking-normal"><span className="text-slate-500">Sales Cash (+)</span><span className="text-xl font-semibold tracking-tight font-medium text-slate-900 leading-none">{formatCurrency(stats.cashSales)}</span></p>
+               <p className="flex justify-between items-end text-[10px] font-medium font-bold  tracking-normal"><span className="text-slate-500">Moved to POS (-)</span><span className="text-xl font-semibold tracking-tight font-medium text-red-600 leading-none">{formatCurrency(stats.posTransferOut)}</span></p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6 flex flex-col">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-              <CreditCard className="w-5 h-5" />
+        <div className="bg-white p-8 border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-8 flex flex-col">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-cyan-400 border border-slate-200 rounded-2xl text-slate-900 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex items-center justify-center">
+              <CreditCard className="w-6 h-6" />
             </div>
-            <h3 className="font-black text-slate-900 uppercase text-[10px] tracking-widest">Consolidated Bank</h3>
+            <h3 className="font-semibold tracking-tight font-medium text-slate-900 text-xl  tracking-tight">Consolidated Bank</h3>
           </div>
-          <div className="space-y-4 flex-1">
-            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <span>Expected Stmt</span>
-              <span className="text-slate-900">{formatCurrency(stats.bankExpected)}</span>
+          <div className="space-y-6 flex-1">
+            <div className="flex flex-col gap-1 border-b-2 border-slate-200 pb-4">
+              <span className="text-[10px] font-medium font-bold text-slate-500  tracking-normal">Expected Stmt</span>
+              <span className="text-3xl font-semibold tracking-tight font-medium text-slate-900">{formatCurrency(stats.bankExpected)}</span>
             </div>
             <input 
               type="number" 
-              placeholder="Current Statement Balance" 
-              className="w-full px-6 py-4 bg-slate-50 rounded-2xl text-xl font-black outline-none focus:ring-2 focus:ring-indigo-500" 
+              placeholder="Statement Balance" 
+              className="w-full px-6 py-5 bg-white/60 backdrop-blur-3xl border border-slate-200 rounded-2xl text-2xl font-semibold tracking-tight font-medium outline-none focus:bg-white transition-all text-center placeholder:text-slate-300" 
               value={actualBank} 
               onFocus={e => e.target.select()}
               onChange={e => setActualBank(e.target.value)} 
             />
             {bankVariance !== null && (
-              <div className={`p-4 rounded-xl flex justify-between items-center animate-in zoom-in duration-300 ${bankVariance === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                <span className="text-[10px] font-black uppercase">Discrepancy</span>
-                <span className="font-black">{bankVariance === 0 ? 'BALANCED' : formatCurrency(bankVariance)}</span>
+              <div className={`p-5 border-2 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex justify-between items-center animate-in zoom-in duration-300 ${bankVariance === 0 ? 'bg-[#10b981] border-slate-200 text-slate-900' : 'bg-red-600 border-slate-200 text-white'}`}>
+                <span className="text-[10px] font-medium font-bold  tracking-normal">Discrepancy</span>
+                <span className="font-semibold tracking-tight font-medium text-xl">{bankVariance === 0 ? 'BALANCED' : formatCurrency(bankVariance)}</span>
               </div>
             )}
-            <div className="bg-slate-50 p-4 rounded-2xl space-y-2 border border-slate-100">
-               <p className="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>Shop Sales (+)</span><span className="text-indigo-600">+{formatCurrency(stats.bankSales)}</span></p>
-               <p className="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>POS Receipts (+)</span><span className="text-indigo-600">+{formatCurrency(stats.posReceivedInBank)}</span></p>
+            <div className="bg-white/60 backdrop-blur-3xl p-5 border border-slate-200 rounded-2xl space-y-3">
+               <p className="flex justify-between items-end text-[10px] font-medium font-bold  tracking-normal"><span className="text-slate-500">Shop Sales (+)</span><span className="text-xl font-semibold tracking-tight font-medium text-slate-900 leading-none">{formatCurrency(stats.bankSales)}</span></p>
+               <p className="flex justify-between items-end text-[10px] font-medium font-bold  tracking-normal"><span className="text-slate-500">POS Receipts (+)</span><span className="text-xl font-semibold tracking-tight font-medium text-slate-900 leading-none">{formatCurrency(stats.posReceivedInBank)}</span></p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6 flex flex-col">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
-              <Banknote className="w-5 h-5" />
+        <div className="bg-white p-8 border border-slate-200 rounded-[2rem] shadow-sm bg-white/80 backdrop-blur-xl ring-1 ring-slate-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-8 flex flex-col">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-600 text-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex items-center justify-center">
+              <Banknote className="w-6 h-6" />
             </div>
-            <h3 className="font-black text-slate-900 uppercase text-[10px] tracking-widest">POS Cash Float</h3>
+            <h3 className="font-semibold tracking-tight font-medium text-slate-900 text-xl  tracking-tight">POS Cash Float</h3>
           </div>
-          <div className="space-y-4 flex-1">
-            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <span>Expected Float</span>
-              <span className="text-slate-900">{formatCurrency(stats.posFloatExpected)}</span>
+          <div className="space-y-6 flex-1">
+            <div className="flex flex-col gap-1 border-b-2 border-slate-200 pb-4">
+              <span className="text-[10px] font-medium font-bold text-slate-500  tracking-normal">Expected Float</span>
+              <span className="text-3xl font-semibold tracking-tight font-medium text-slate-900">{formatCurrency(stats.posFloatExpected)}</span>
             </div>
             <input 
               type="number" 
               placeholder="Actual POS Cash" 
-              className="w-full px-6 py-4 bg-slate-50 rounded-2xl text-xl font-black outline-none focus:ring-2 focus:ring-indigo-500" 
+              className="w-full px-6 py-5 bg-white/60 backdrop-blur-3xl border border-slate-200 rounded-2xl text-2xl font-semibold tracking-tight font-medium outline-none focus:bg-white transition-all text-center placeholder:text-slate-300" 
               value={actualPOS} 
               onFocus={e => e.target.select()}
               onChange={e => setActualPOS(e.target.value)} 
             />
             {posVariance !== null && (
-              <div className={`p-4 rounded-xl flex justify-between items-center animate-in zoom-in duration-300 ${posVariance === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                <span className="text-[10px] font-black uppercase">Discrepancy</span>
-                <span className="font-black">{posVariance === 0 ? 'BALANCED' : formatCurrency(posVariance)}</span>
+              <div className={`p-5 border-2 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex justify-between items-center animate-in zoom-in duration-300 ${posVariance === 0 ? 'bg-[#10b981] border-slate-200 text-slate-900' : 'bg-red-600 border-slate-200 text-white'}`}>
+                <span className="text-[10px] font-medium font-bold  tracking-normal">Discrepancy</span>
+                <span className="font-semibold tracking-tight font-medium text-xl">{posVariance === 0 ? 'BALANCED' : formatCurrency(posVariance)}</span>
               </div>
             )}
-            <div className="bg-slate-50 p-4 rounded-2xl space-y-2 border border-slate-100">
-               <p className="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>Float Start (+)</span><span className="text-slate-600">{formatCurrency(activeFloat?.openingBalance || 0)}</span></p>
-               <p className="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>Replenishments (+)</span><span className="text-emerald-600">+{formatCurrency(stats.posTransfersIn - (activeFloat?.openingBalance || 0))}</span></p>
-               <p className="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>Cash Given (-)</span><span className="text-rose-600">-{formatCurrency(stats.posTotalDisbursed)}</span></p>
+            <div className="bg-white/60 backdrop-blur-3xl p-5 border border-slate-200 rounded-2xl space-y-3">
+               <p className="flex justify-between items-end text-[10px] font-medium font-bold  tracking-normal"><span className="text-slate-500">Float Start (+)</span><span className="text-xl font-semibold tracking-tight font-medium text-slate-900 leading-none">{formatCurrency(activeFloat?.openingBalance || 0)}</span></p>
+               <p className="flex justify-between items-end text-[10px] font-medium font-bold  tracking-normal"><span className="text-slate-500">Replenishments (+)</span><span className="text-xl font-semibold tracking-tight font-medium text-[#10b981] leading-none px-1 bg-slate-900">{formatCurrency(stats.posTransfersIn - (activeFloat?.openingBalance || 0))}</span></p>
+               <p className="flex justify-between items-end text-[10px] font-medium font-bold  tracking-normal"><span className="text-slate-500">Cash Given (-)</span><span className="text-xl font-semibold tracking-tight font-medium text-red-600 leading-none">{formatCurrency(stats.posTotalDisbursed)}</span></p>
             </div>
           </div>
         </div>
