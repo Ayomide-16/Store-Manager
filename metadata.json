@@ -1,5 +1,8 @@
 {
   "name": "Naija Shop Manager",
   "description": "A comprehensive shop management system designed for Nigerian retail, focusing on transaction logging, theft prevention, and business intelligence.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
